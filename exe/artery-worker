@@ -1,0 +1,5 @@
+#!/usr/bin/env ruby
+require ENV['APP_PATH'] || File.join(File.expand_path('.'), 'config', 'application')
+Rails.application.initialize!
+
+Artery::Worker.new.execute
