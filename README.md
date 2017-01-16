@@ -1,5 +1,5 @@
 # Artery
-Short description and motivation.
+Main messaging system between Rails [micro]services implementing message bus pattern on NATS (for now).
 
 ## Usage
 How to use my plugin.
