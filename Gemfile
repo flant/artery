@@ -17,3 +17,6 @@ gem 'sqlite3'
 gem 'rubocop'
 gem 'rspec-rails'
 gem 'factory_girl_rails'
+
+gem 'rubocop'
+gem 'overcommit'

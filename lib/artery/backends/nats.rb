@@ -27,7 +27,7 @@ module Artery
         else
           start do
             ::NATS.request(*args) do |*resp|
-              blk.call(*resp) if block_given?
+              yield(*resp) if block_given?
               stop
             end
           end
@@ -40,7 +40,7 @@ module Artery
         else
           start do
             ::NATS.publish(*args) do |*resp|
-              blk.call(*resp) if block_given?
+              yield(*resp) if block_given?
               stop
             end
           end
@@ -53,6 +53,7 @@ module Artery
 
       private
 
+      # rubocop:disable Metrics/AbcSize
       def options
         options = {}
 

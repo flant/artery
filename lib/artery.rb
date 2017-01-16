@@ -10,19 +10,20 @@ module Artery
   autoload :Routing, 'artery/routing'
   autoload :Backend, 'artery/backend'
 
-  extend Config
-  extend Backend
+  include Config
+  include Backend
 
   module Backends
     autoload :Base, 'artery/backends/base'
     autoload :NATS, 'artery/backends/nats'
   end
 
-  mattr_accessor :models
   class << self
+    attr_accessor :models
+
     def register_model(model_class)
-      self.models ||= {}
-      self.models[model_class.artery_model_name.to_sym] = model_class
+      @models ||= {}
+      @models[model_class.artery_model_name.to_sym] = model_class
     end
   end
 end

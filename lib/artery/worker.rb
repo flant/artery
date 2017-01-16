@@ -1,15 +1,16 @@
 module Artery
   class Worker
+    # rubocop:disable all
     def execute
       Artery.start do
-        Artery.models.each do |model_name, model_class|
+        Artery.models.each do |_model_name, model_class|
           model_class.artery[:subscriptions].each do |route, handler|
             puts "Subscribing on `#{route}`"
             Artery.subscribe route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
               puts "GOT MESSAGE: #{[data, reply, from].inspect}"
               begin
                 action = Routing.pick_action(from)
-                handle = Proc.new do |d, r, f|
+                handle = proc do |d, r, f|
                   if handler.is_a?(Hash)
                     handler[:handler].call(action.to_sym, d, r, f)
                   else
@@ -23,7 +24,7 @@ module Artery
                                           model: Routing.pick_model_name(from),
                                           action: :get
 
-                  Artery.request route, { uuid: data['uuid'], service: Artery.service_name } do |attributes|
+                  Artery.request route, uuid: data['uuid'], service: Artery.service_name do |attributes|
                     handle.call(attributes)
                   end
                 else
@@ -38,5 +39,6 @@ module Artery
         end
       end
     end
+    # rubocop:enable all
   end
 end

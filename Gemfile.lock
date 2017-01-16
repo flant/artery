@@ -49,6 +49,8 @@ GEM
     arel (7.1.4)
     ast (2.3.0)
     builder (3.2.2)
+    childprocess (0.5.9)
+      ffi (~> 1.0, >= 1.0.11)
     concurrent-ruby (1.0.4)
     diff-lcs (1.2.5)
     erubis (2.7.0)
@@ -58,9 +60,11 @@ GEM
     factory_girl_rails (4.8.0)
       factory_girl (~> 4.8.0)
       railties (>= 3.0.0)
+    ffi (1.9.14)
     globalid (0.3.7)
       activesupport (>= 4.1.0)
     i18n (0.7.0)
+    iniparse (1.4.2)
     loofah (2.0.3)
       nokogiri (>= 1.5.9)
     mail (2.6.4)
@@ -77,6 +81,9 @@ GEM
     nio4r (1.2.1)
     nokogiri (1.7.0.1)
       mini_portile2 (~> 2.1.0)
+    overcommit (0.37.0)
+      childprocess (~> 0.5.8)
+      iniparse (~> 1.4)
     parser (2.3.3.1)
       ast (~> 2.2)
     powerpack (0.1.1)
@@ -155,6 +162,7 @@ PLATFORMS
 DEPENDENCIES
   artery!
   factory_girl_rails
+  overcommit
   rspec-rails
   rubocop
   sqlite3

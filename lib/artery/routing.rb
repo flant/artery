@@ -1,6 +1,7 @@
 module Artery
   module Routing
     module_function
+
     def compile(service: nil, model:, action:)
       service ||= Artery.service_name
 

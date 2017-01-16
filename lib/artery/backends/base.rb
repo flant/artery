@@ -6,31 +6,31 @@ module Artery
         @config = config
       end
 
-      def start(*args, &blk)
+      def start(*_args)
         raise NotImplementedError
       end
 
-      def connect(*args, &blk)
+      def connect(*_args)
         raise NotImplementedError
       end
 
-      def subscribe(*args, &blk)
+      def subscribe(*_args)
         raise NotImplementedError
       end
 
-      def unsubscribe(*args, &blk)
+      def unsubscribe(*_args)
         raise NotImplementedError
       end
 
-      def publish(*args, &blk)
+      def publish(*_args)
         raise NotImplementedError
       end
 
-      def request(*args, &blk)
+      def request(*_args)
         raise NotImplementedError
       end
 
-      def stop(*args, &blk)
+      def stop(*_args)
         raise NotImplementedError
       end
     end

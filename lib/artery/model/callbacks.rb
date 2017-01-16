@@ -8,9 +8,7 @@ module Artery
         after_update  :artery_update_message
         after_destroy :artery_destroy_message
 
-        if respond_to? :after_archive
-          after_archive :artery_archive_message
-        end
+        after_archive :artery_archive_message if respond_to? :after_archive
 
         if respond_to? :after_unarchive
           after_unarchive :artery_unarchive_message
@@ -43,7 +41,7 @@ module Artery
 
       def artery_notify_message(action, extra_data = {})
         Artery.message_class.create! route: Artery::Routing.compile(model: self.class.artery_model_name, action: action),
-                                    #  version: self.class.artery_version, TODO:
+                                     #  version: self.class.artery_version, TODO:
                                      data: { uuid: artery_uuid }.merge(extra_data)
       end
     end

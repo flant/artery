@@ -7,17 +7,15 @@ module Artery
       extend ClassMethods
       include InstanceMethods
 
-      options[:name] ||= self.to_s.demodulize.underscore.to_sym
+      options[:name] ||= to_s.demodulize.underscore.to_sym
       options[:source] = false if options[:source].nil?
       options[:uuid_attribute] = :uuid if options[:uuid_attribute].nil?
 
       class_attribute :artery, instance_writer: false
 
-      self.artery = options.merge({
-        representations: {
-          _default: proc { attributes }
-        }
-      })
+      self.artery = options.merge(representations: {
+                                    _default: proc { attributes }
+                                  })
 
       Artery.register_model self
 
@@ -27,8 +25,8 @@ module Artery
 
     module ClassMethods
       # Always clone artery configuration in subclass from parent class
-      def inherited(subClass)
-        self._artery = self._artery.clone
+      def inherited(_subClass)
+        self._artery = _artery.clone
       end
 
       def artery_model_name
@@ -45,7 +43,7 @@ module Artery
 
       def artery_representation(*services, &blk)
         services.each do |service_name|
-          self.artery[:representations][service_name.to_sym] = blk
+          artery[:representations][service_name.to_sym] = blk
         end
       end
 
@@ -55,9 +53,9 @@ module Artery
 
       def artery_version(version = nil)
         if version
-          self.artery[:version] = version
+          artery[:version] = version
         else
-          self.artery[:version] || 'v1'
+          artery[:version] || 'v1'
         end
       end
     end

@@ -9,15 +9,15 @@ module Artery
 
       module ClassMethods
         def artery_find!(uuid)
-          self.find_by! "#{artery_uuid_attribute}": uuid
+          find_by! "#{artery_uuid_attribute}": uuid
         end
 
         def artery_add_subscription(route, handler = nil, &blk)
-          self.artery[:subscriptions] ||= {}
+          artery[:subscriptions] ||= {}
           if handler
             handler = { handler: handler } # KOSTYL: Multiblock::Wrapper is BasicObject, no way to identify it
           end
-          self.artery[:subscriptions][route] = handler || blk
+          artery[:subscriptions][route] = handler || blk
         end
 
         def artery_watch_model(service: nil, model: nil, action: nil)
@@ -32,7 +32,7 @@ module Artery
           artery_add_subscription Artery::Routing.compile(model: artery_model_name, action: :get) do |data, reply, sub|
             puts "HEY-HEY-HEY, message on GET with arguments: `#{[data, reply, sub].inspect}`!"
 
-            obj = self.artery_find! data['uuid']
+            obj = artery_find! data['uuid']
             service = data['service']
 
             Artery.publish(reply, obj.to_artery(service))
@@ -43,7 +43,7 @@ module Artery
 
             service = data['service']
 
-            Artery.publish(reply, self.all.map{ |obj| obj.to_artery(service) }) # TODO: We MUST optimize this!
+            Artery.publish(reply, all.map { |obj| obj.to_artery(service) }) # TODO: We MUST optimize this!
           end
         end
       end

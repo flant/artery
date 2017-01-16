@@ -1,0 +1,38 @@
+inherit_from: .rubocop_todo.yml
+
+AllCops:
+  TargetRubyVersion: 2.2
+  Include:
+    - '**/Rakefile'
+    - '**/config.ru'
+  Exclude:
+    - 'db/**/*'
+    - '**/Gemfile'
+
+Metrics/LineLength:
+  Max: 140
+
+Metrics/AbcSize:
+  Max: 25
+
+Metrics/MethodLength:
+  Max: 20
+
+Metrics/ModuleLength:
+  Max: 200
+
+Metrics/ClassLength:
+  Max: 300
+
+Metrics/CyclomaticComplexity:
+  Max: 10
+
+Metrics/PerceivedComplexity:
+  Max: 10
+
+
+Style/Documentation:
+  Enabled: false
+
+Style/PredicateName:
+  Enabled: false
