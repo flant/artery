@@ -17,6 +17,7 @@ module Artery
     module ClassMethods
       def subscribe(route, options = {})
         backend.subscribe(route, options) do |message, reply, from|
+          message ||= '{}'
           yield(JSON.parse(message), reply, from)
         end
       end
@@ -26,6 +27,7 @@ module Artery
 
         backend.request(route, data.to_json) do |message|
           puts "RESPONSE RECEIVED: #{message}"
+          message ||= '{}'
           response = JSON.parse(message)
           yield(response)
         end

@@ -40,7 +40,8 @@ module Artery
       private
 
       def artery_notify_message(action, extra_data = {})
-        Artery.message_class.create! route: Artery::Routing.compile(model: self.class.artery_model_name, action: action),
+        Artery.message_class.create! model: self.class.artery_model_name,
+                                     action: action,
                                      #  version: self.class.artery_version, TODO:
                                      data: { uuid: artery_uuid }.merge(extra_data)
       end
