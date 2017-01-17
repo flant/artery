@@ -21,6 +21,8 @@ module Artery
 
       include Subscriptions
       include Callbacks if artery_source_model?
+
+      scope :artery_all, -> { all }
     end
 
     module ClassMethods

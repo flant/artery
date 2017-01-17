@@ -12,20 +12,26 @@ module Artery
           find_by! "#{artery_uuid_attribute}": uuid
         end
 
-        def artery_add_subscription(uri, handler = nil, &blk)
-          artery[:subscriptions] ||= {}
-          if handler
-            handler = { handler: handler } # KOSTYL: Multiblock::Wrapper is BasicObject, no way to identify it
+        def artery_add_subscription(uri, options = {}, &blk)
+          raise ArgumentError, 'block must be provided to handle subscription updates' unless block_given?
+
+          handler ||= Multiblock.wrapper
+
+          if uri.action.blank? || uri.action.to_s == '*'
+            yield(handler)
+          else
+            handler._default(&blk)
           end
-          artery[:subscriptions][uri] = handler || blk
+
+          artery[:subscriptions] ||= {}
+          artery[:subscriptions][uri] = options.merge(handler: handler)
         end
 
-        def artery_watch_model(service: nil, model: nil, action: nil)
-          model ||= artery_model_name
-          handler = Multiblock.wrapper
-          yield(handler)
+        def artery_watch_model(service:, model: nil, action: nil, **kwargs, &blk)
+          model  ||= artery_model_name
+          action ||= '*' # FIXME: This leads to handling GET messages, which is useless reaction
 
-          artery_add_subscription Routing.uri(service: service, model: model, action: '*'), handler
+          artery_add_subscription Routing.uri(service: service, model: model, action: action), kwargs, &blk
         end
 
         # rubocop:disable Metrics/AbcSize
@@ -44,12 +50,11 @@ module Artery
 
             service = data['service']
 
-            # TODO: We MUST optimize this using scopes or smth!
-            Artery.publish(reply, objects: all.map { |obj| obj.to_artery(service) }, timestamp: Time.zone.now.to_f)
+            Artery.publish(reply, objects: artery_all.map { |obj| obj.to_artery(service) }, timestamp: Time.zone.now.to_f)
           end
 
           artery_add_subscription Routing.uri(model: artery_model_name, action: :get_updates) do |data, reply, sub|
-            puts "HEY-HEY-HEY, message on GET_ALL_UPDATES with arguments: `#{[data, reply, sub].inspect}`!"
+            puts "HEY-HEY-HEY, message on GET_UPDATES with arguments: `#{[data, reply, sub].inspect}`!"
 
             messages = Artery.message_class.since(artery_model_name, data['since'])
             puts "MESSAGES: #{messages.inspect}"
