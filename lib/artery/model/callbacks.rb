@@ -4,36 +4,31 @@ module Artery
       extend ActiveSupport::Concern
 
       included do
-        after_create  :artery_create_message
-        after_update  :artery_update_message
-        after_destroy :artery_destroy_message
+        after_create  :artery_on_create
+        after_update  :artery_on_update
+        after_destroy :artery_on_destroy
 
-        after_archive :artery_archive_message if respond_to? :after_archive
-
-        if respond_to? :after_unarchive
-          after_unarchive :artery_unarchive_message
-        end
+        after_archive   :artery_on_archive   if respond_to? :after_archive
+        after_unarchive :artery_on_unarchive if respond_to? :after_unarchive
       end
 
-      protected
-
-      def artery_create_message
+      def artery_on_create
         artery_notify_message(:create)
       end
 
-      def artery_update_message
+      def artery_on_update
         artery_notify_message(:update)
       end
 
-      def artery_archive_message
+      def artery_on_archive
         artery_notify_message(:archive, archived_at: archived_at.to_f)
       end
 
-      def artery_unarchive_message
+      def artery_on_unarchive
         artery_notify_message(:unarchive)
       end
 
-      def artery_destroy_message
+      def artery_on_destroy
         artery_notify_message(:delete)
       end
 
