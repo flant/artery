@@ -32,7 +32,11 @@ module Artery
     def subscribe(uri, handler)
       puts "Subscribing on `#{uri}`"
       Artery.subscribe uri.to_route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
-        handle_subscription(handler, data, reply, from)
+        begin
+          handle_subscription(handler, data, reply, from)
+        rescue Exception => e
+          Rails.logger.error "Error in subscription handling: #{e.inspect}\n#{e.backtrace}"
+        end
       end
     end
 
@@ -65,22 +69,31 @@ module Artery
     def receive_all_objects(uri, handler)
       uri = Routing.uri(service: uri.service, model: uri.model, action: :get_all)
       Artery.request uri.to_route, service: Artery.service_name do |data|
-        puts "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
+        begin
+          puts "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
 
-        handler.call(:syncronization, data['objects'])
+          handler.call(:syncronization, data['objects'])
 
-        Artery.last_model_update_class.model_update!(uri, data['timestamp'])
+          Artery.last_model_update_class.model_update!(uri, data['timestamp'])
+        rescue Exception => e
+          Rails.logger.error "Error in all objects request handling: #{e.inspect}\n#{e.backtrace}"
+        end
       end
     end
 
     def receive_updates(uri, handler, last_model_update_at)
       uri = Routing.uri(service: uri.service, model: uri.model, action: :get_updates)
       Artery.request uri.to_route, since: last_model_update_at.to_f do |data|
-        puts "HEY-HEY, LAST_UPDATES: #{[data].inspect}"
+        begin
 
-        data['updates'].each do |update|
-          from = Routing.uri(service: uri.service, model: uri.model, action: update.delete('action')).to_route
-          handle_subscription(handler, update, nil, from)
+          puts "HEY-HEY, LAST_UPDATES: #{[data].inspect}"
+
+          data['updates'].each do |update|
+            from = Routing.uri(service: uri.service, model: uri.model, action: update.delete('action')).to_route
+            handle_subscription(handler, update, nil, from)
+          end
+        rescue Exception => e
+          Rails.logger.error "Error in updates request handling: #{e.inspect}\n#{e.backtrace}"
         end
       end
     end

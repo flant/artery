@@ -17,8 +17,12 @@ module Artery
     module ClassMethods
       def subscribe(route, options = {})
         backend.subscribe(route, options) do |message, reply, from|
-          message ||= '{}'
-          yield(JSON.parse(message), reply, from)
+          begin
+            message ||= '{}'
+            yield(JSON.parse(message), reply, from)
+          rescue JSON::ParserError
+            Rails.logger.error "Received message from #{from} in wrong format: #{message}"
+          end
         end
       end
 
@@ -27,9 +31,12 @@ module Artery
 
         backend.request(route, data.to_json) do |message|
           puts "RESPONSE RECEIVED: #{message}"
-          message ||= '{}'
-          response = JSON.parse(message)
-          yield(response)
+          begin
+            message ||= '{}'
+            yield(JSON.parse(message))
+          rescue JSON::ParserError
+            Rails.logger.error "Received message from #{route} in wrong format: #{message}"
+          end
         end
       end
 
