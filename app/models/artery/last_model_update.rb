@@ -4,7 +4,7 @@ if defined?(ActiveRecord)
       class << self
         def model_update!(uri, timestamp)
           obj = find_or_initialize_by service: uri.service, model: uri.model
-          obj.last_message_at = timestamp
+          obj.last_message_at = timestamp unless obj.last_message_at.to_f > timestamp.to_f
           obj.save!
         end
 
