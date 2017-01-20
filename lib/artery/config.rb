@@ -8,11 +8,11 @@ module Artery
 
         # Ability to redefine message class (for example, for non-activerecord applications)
         def message_class
-          @message_class || Message
+          @message_class || Artery::Message
         end
 
         def last_model_update_class
-          @last_model_update_class || LastModelUpdate
+          @last_model_update_class || Artery::LastModelUpdate
         end
 
         def service_name
