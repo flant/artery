@@ -72,7 +72,7 @@ module Artery
         begin
           puts "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
 
-          handler.call(:syncronization, data['objects'])
+          handler.call(:synchronization, data['objects'])
 
           Artery.last_model_update_class.model_update!(uri, data['timestamp'])
         rescue Exception => e
