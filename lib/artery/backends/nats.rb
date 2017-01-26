@@ -64,6 +64,11 @@ module Artery
         options[:reconnect_time_wait]    = config[:reconnect_timeout]  unless config[:reconnect_timeout].blank?
         options[:max_reconnect_attempts] = config[:reconnect_attempts] unless config[:reconnect_attempts].blank?
 
+        if ENV.key?('NATS_URL')
+          options[:servers] ||= []
+          options[:servers] << ENV['NATS_URL']
+        end
+
         options
       end
     end
