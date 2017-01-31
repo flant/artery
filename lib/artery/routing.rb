@@ -1,15 +1,18 @@
 module Artery
   module Routing
     class URI
-      attr_accessor :service, :model, :action
+      attr_accessor :service, :model, :action, :plural
       def initialize(arg)
         case arg
         when String
-          @service, @model, @action = arg.split('.').map(&:to_sym)
+          @service, model, @action = arg.split('.').map(&:to_sym)
+          @model = model.singularize
+          @plural = (@model == model)
         when Hash
           @service = arg[:service] || Artery.service_name
           @model   = arg[:model].try(:to_sym)
           @action  = arg[:action].try(:to_sym)
+          @plural  = arg[:plural]
         else
           raise ArgumentError, 'Unknown argument format'
         end
@@ -17,9 +20,17 @@ module Artery
       end
 
       def to_route
-        [@service, @model, @action].join('.')
+        [@service, route_model, @action].join('.')
       end
       alias to_s to_route
+
+      def plural?
+        @plural
+      end
+
+      def route_model
+        (plural? ? model.pluralize : model)
+      end
     end
 
     module_function

@@ -17,11 +17,12 @@ module Artery
         handler = options[:handler]
 
         # TODO: implement this carefully
-        if !model_class.artery_source_model? && options[:synchronize]
+        if uri.service != Artery.service_name
           if (lmu_at = Artery.last_model_update_class.last_model_update_at(uri))
-            receive_updates(uri, handler, lmu_at)
-          else
-            receive_all_objects(uri, handler)
+            receive_updates(uri, handler, lmu_at) if options[:synchronize_updates]
+          elsif options[:synchronize]
+            scope = options[:synchronize][:scope] if options[:synchronize].is_a?(Hash)
+            receive_all_objects(uri, scope, handler)
           end
         end
 
@@ -42,8 +43,15 @@ module Artery
 
     protected
 
+    # rubocop:disable all
     def handle_subscription(handler, data, reply, from)
       puts "GOT MESSAGE: #{[data, reply, from].inspect}"
+
+      if data[:updated_by_service].to_s == Artery.service_name.to_s
+        puts 'SKIPPING UPDATES MADE BY US'
+        return
+      end
+
       from_uri = Routing.uri(from)
 
       handle = proc do |d, r, f|
@@ -52,27 +60,33 @@ module Artery
 
       case from_uri.action
       when :create, :update
-        Artery.last_model_update_class.model_update!(from_uri, data['timestamp'])
-
         get_uri = Routing.uri service: from_uri.service,
                               model: from_uri.model,
+                              plural: true,
                               action: :get
 
         Artery.request get_uri.to_route, uuid: data['uuid'], service: Artery.service_name do |attributes|
           handle.call(attributes)
         end
+
+        Artery.last_model_update_class.model_update!(from_uri, data['timestamp'])
+      when :destroy
+        handle.call(data, reply, from)
+
+        Artery.last_model_update_class.model_update!(from_uri, data['timestamp'])
       else
         handle.call(data, reply, from)
       end
     end
+    # rubocop:enable all
 
-    def receive_all_objects(uri, handler)
-      uri = Routing.uri(service: uri.service, model: uri.model, action: :get_all)
-      Artery.request uri.to_route, service: Artery.service_name do |data|
+    def receive_all_objects(uri, scope, handler)
+      uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_all)
+      Artery.request uri.to_route, service: Artery.service_name, scope: scope do |data|
         begin
           puts "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
 
-          handler.call(:synchronization, data['objects'])
+          handler.call(:synchronization, data['objects'].map(&:with_indifferent_access))
 
           Artery.last_model_update_class.model_update!(uri, data['timestamp'])
         rescue Exception => e
@@ -82,7 +96,7 @@ module Artery
     end
 
     def receive_updates(uri, handler, last_model_update_at)
-      uri = Routing.uri(service: uri.service, model: uri.model, action: :get_updates)
+      uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
       Artery.request uri.to_route, since: last_model_update_at.to_f do |data|
         begin
 

@@ -5,6 +5,8 @@ module Artery
 
       included do
         artery_add_get_subscriptions if artery_source_model?
+
+        attr_accessor :artery_updated_by_service
       end
 
       module ClassMethods
@@ -23,6 +25,13 @@ module Artery
             handler._default(&blk)
           end
 
+          defaults = {
+            synchronize:         false,
+            synchronize_updates: true
+          }
+
+          options.reverse_merge!(defaults)
+
           artery[:subscriptions] ||= {}
           artery[:subscriptions][uri] = options.merge(handler: handler)
         end
@@ -36,7 +45,7 @@ module Artery
 
         # rubocop:disable Metrics/AbcSize
         def artery_add_get_subscriptions
-          artery_add_subscription Routing.uri(model: artery_model_name, action: :get) do |data, reply, sub|
+          artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get) do |data, reply, sub|
             puts "HEY-HEY-HEY, message on GET with arguments: `#{[data, reply, sub].inspect}`!"
 
             obj = artery_find! data['uuid']
@@ -45,15 +54,18 @@ module Artery
             Artery.publish(reply, obj.to_artery(service))
           end
 
-          artery_add_subscription Routing.uri(model: artery_model_name, action: :get_all) do |data, reply, sub|
+          artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_all) do |data, reply, sub|
             puts "HEY-HEY-HEY, message on GET_ALL with arguments: `#{[data, reply, sub].inspect}`!"
 
             service = data['service']
+            scope   = "artery_#{data['scope'] || 'all'}"
 
-            Artery.publish(reply, objects: artery_all.map { |obj| obj.to_artery(service) }, timestamp: Time.zone.now.to_f)
+            objects = send(scope).map { |obj| obj.to_artery(service) }
+
+            Artery.publish(reply, objects: objects, timestamp: Time.zone.now.to_f)
           end
 
-          artery_add_subscription Routing.uri(model: artery_model_name, action: :get_updates) do |data, reply, sub|
+          artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_updates) do |data, reply, sub|
             puts "HEY-HEY-HEY, message on GET_UPDATES with arguments: `#{[data, reply, sub].inspect}`!"
 
             messages = Artery.message_class.since(artery_model_name, data['since'])
@@ -63,6 +75,10 @@ module Artery
           end
         end
         # rubocop:enable Metrics/AbcSize
+      end
+
+      def artery_updated_by!(service)
+        self.artery_updated_by_service = service
       end
     end
   end

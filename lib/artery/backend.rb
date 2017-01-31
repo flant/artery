@@ -19,7 +19,7 @@ module Artery
         backend.subscribe(route, options) do |message, reply, from|
           begin
             message ||= '{}'
-            yield(JSON.parse(message), reply, from)
+            yield(JSON.parse(message).with_indifferent_access, reply, from)
           rescue JSON::ParserError
             Rails.logger.error "Received message from #{from} in wrong format: #{message}"
           end
@@ -33,7 +33,7 @@ module Artery
           puts "RESPONSE RECEIVED: #{message}"
           begin
             message ||= '{}'
-            yield(JSON.parse(message))
+            yield(JSON.parse(message).with_indifferent_access)
           rescue JSON::ParserError
             Rails.logger.error "Received message from #{route} in wrong format: #{message}"
           end

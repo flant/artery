@@ -22,7 +22,7 @@ module Artery
       include Subscriptions
       include Callbacks if artery_source_model?
 
-      scope :artery_all, -> { all }
+      artery_scope :all, -> { all }
     end
 
     module ClassMethods
@@ -33,6 +33,10 @@ module Artery
 
       def artery_model_name
         artery[:name]
+      end
+
+      def artery_model_name_plural
+        artery_model_name.to_s.pluralize.to_sym
       end
 
       def artery_source_model?
@@ -59,6 +63,10 @@ module Artery
         else
           artery[:version] || 'v1'
         end
+      end
+
+      def artery_scope(name, lmbd)
+        scope :"artery_#{name}", lmbd
       end
     end
 
