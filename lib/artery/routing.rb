@@ -6,7 +6,7 @@ module Artery
         case arg
         when String
           @service, model, @action = arg.split('.').map(&:to_sym)
-          @model = model.singularize
+          @model = model.to_s.singularize.to_sym
           @plural = (@model == model)
         when Hash
           @service = arg[:service] || Artery.service_name
@@ -29,7 +29,7 @@ module Artery
       end
 
       def route_model
-        (plural? ? model.pluralize : model)
+        (plural? ? model.to_s.pluralize : model)
       end
     end
 
