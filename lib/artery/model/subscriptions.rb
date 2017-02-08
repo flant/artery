@@ -10,8 +10,8 @@ module Artery
       end
 
       module ClassMethods
-        def artery_find!(uuid)
-          find_by! "#{artery_uuid_attribute}": uuid
+        def artery_find(uuid)
+          find_by "#{artery_uuid_attribute}": uuid
         end
 
         def artery_add_subscription(uri, options = {}, &blk)
@@ -47,11 +47,12 @@ module Artery
         def artery_add_get_subscriptions
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get) do |data, reply, sub|
             puts "HEY-HEY-HEY, message on GET with arguments: `#{[data, reply, sub].inspect}`!"
-
-            obj = artery_find! data['uuid']
+            obj = artery_find data['uuid']
             service = data['service']
 
-            Artery.publish(reply, obj.to_artery(service))
+            data = obj.blank? ? { error: 'not_found' } : obj.to_artery(service)
+
+            Artery.publish(reply, data)
           end
 
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_all) do |data, reply, sub|

@@ -8,6 +8,7 @@ module Artery
           end
         rescue Exception => e
           puts "WORKER ERROR: #{e.inspect}: #{e.backtrace.inspect}"
+          retry
         end
       end
     end
@@ -47,14 +48,14 @@ module Artery
     def handle_subscription(handler, data, reply, from)
       puts "GOT MESSAGE: #{[data, reply, from].inspect}"
 
-      if data[:updated_by_service].to_s == Artery.service_name.to_s
-        puts 'SKIPPING UPDATES MADE BY US'
-        return
-      end
-
       from_uri = Routing.uri(from)
 
       handle = proc do |d, r, f|
+        if data[:updated_by_service].to_s == Artery.service_name.to_s
+          puts 'SKIPPING UPDATES MADE BY US'
+          next
+        end
+
         handler.call(from_uri.action, d, r, f) || handler.call(:_default, d, r, f)
       end
 
@@ -66,11 +67,15 @@ module Artery
                               action: :get
 
         Artery.request get_uri.to_route, uuid: data['uuid'], service: Artery.service_name do |attributes|
-          handle.call(attributes)
-        end
+          if (error = attributes[:error])
+            Rails.logger.warn "Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data['uuid']}': #{error}"
+          else
+            handle.call(attributes)
+          end
 
-        Artery.last_model_update_class.model_update!(from_uri, data['timestamp'])
-      when :destroy
+          Artery.last_model_update_class.model_update!(from_uri, data['timestamp'])
+        end
+      when :delete
         handle.call(data, reply, from)
 
         Artery.last_model_update_class.model_update!(from_uri, data['timestamp'])
