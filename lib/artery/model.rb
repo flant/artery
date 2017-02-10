@@ -71,8 +71,15 @@ module Artery
     end
 
     module InstanceMethods
+      def artery_notify_message(action, extra_data = {})
+        Artery.message_class.create! model: self.class.artery_model_name,
+                                     action: action,
+                                     #  version: self.class.artery_version, TODO:
+                                     data: { uuid: artery_uuid, updated_by_service: artery_updated_by_service }.merge(extra_data)
+      end
+
       def artery_uuid
-        send(artery[:uuid_attribute] || :uuid)
+        send(self.class.artery_uuid_attribute)
       end
 
       def to_artery(service_name = nil)

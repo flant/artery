@@ -83,22 +83,26 @@ module Artery
         handle.call(data, reply, from)
       end
     end
-    # rubocop:enable all
 
     def receive_all_objects(uri, scope, handler)
       uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_all)
       Artery.request uri.to_route, service: Artery.service_name, scope: scope do |data|
         begin
-          puts "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
+          if (error = attributes[:error])
+            Rails.logger.warn "Failed to get all objects #{get_uri.model} from #{get_uri.service} with scope='#{scope}': #{error}"
+          else
+            puts "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
 
-          handler.call(:synchronization, data['objects'].map(&:with_indifferent_access))
+            handler.call(:synchronization, data['objects'].map(&:with_indifferent_access))
 
-          Artery.last_model_update_class.model_update!(uri, data['timestamp'])
+            Artery.last_model_update_class.model_update!(uri, data['timestamp'])
+          end
         rescue Exception => e
           Rails.logger.error "Error in all objects request handling: #{e.inspect}\n#{e.backtrace}"
         end
       end
     end
+    # rubocop:enable all
 
     def receive_updates(uri, handler, last_model_update_at)
       uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)

@@ -43,7 +43,7 @@ module Artery
           artery_add_subscription Routing.uri(service: service, model: model, action: action), kwargs, &blk
         end
 
-        # rubocop:disable Metrics/AbcSize
+        # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
         def artery_add_get_subscriptions
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get) do |data, reply, sub|
             puts "HEY-HEY-HEY, message on GET with arguments: `#{[data, reply, sub].inspect}`!"
@@ -61,9 +61,15 @@ module Artery
             service = data['service']
             scope   = "artery_#{data['scope'] || 'all'}"
 
-            objects = send(scope).map { |obj| obj.to_artery(service) }
+            data = if respond_to?(scope)
+                     objects = send(scope).map { |obj| obj.to_artery(service) }
+                     { objects: objects, timestamp: Time.zone.now.to_f }
+                   else
+                     Rails.logger.error "No artery scope '#{data['scope']}' defined!"
+                     { error: 'No such scope!' }
+                   end
 
-            Artery.publish(reply, objects: objects, timestamp: Time.zone.now.to_f)
+            Artery.publish(reply, data)
           end
 
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_updates) do |data, reply, sub|
@@ -75,7 +81,7 @@ module Artery
             Artery.publish(reply, updates: messages.map { |obj| obj.to_artery.merge('action' => obj.action) })
           end
         end
-        # rubocop:enable Metrics/AbcSize
+        # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
       end
 
       def artery_updated_by!(service)

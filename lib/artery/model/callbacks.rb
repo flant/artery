@@ -31,15 +31,6 @@ module Artery
       def artery_on_destroy
         artery_notify_message(:delete)
       end
-
-      private
-
-      def artery_notify_message(action, extra_data = {})
-        Artery.message_class.create! model: self.class.artery_model_name,
-                                     action: action,
-                                     #  version: self.class.artery_version, TODO:
-                                     data: { uuid: artery_uuid, updated_by_service: artery_updated_by_service }.merge(extra_data)
-      end
     end
   end
 end
