@@ -68,17 +68,17 @@ module Artery
 
         Artery.request get_uri.to_route, uuid: data['uuid'], service: Artery.service_name do |attributes|
           if (error = attributes[:error])
-            Rails.logger.warn "Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data['uuid']}': #{error}"
+            Rails.logger.warn "Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{error}"
           else
             handle.call(attributes)
           end
 
-          Artery.last_model_update_class.model_update!(from_uri, data['timestamp'])
+          Artery.last_model_update_class.model_update!(from_uri, data[:timestamp])
         end
       when :delete
         handle.call(data, reply, from)
 
-        Artery.last_model_update_class.model_update!(from_uri, data['timestamp'])
+        Artery.last_model_update_class.model_update!(from_uri, data[:timestamp])
       else
         handle.call(data, reply, from)
       end
@@ -88,14 +88,14 @@ module Artery
       uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_all)
       Artery.request uri.to_route, service: Artery.service_name, scope: scope do |data|
         begin
-          if (error = attributes[:error])
-            Rails.logger.warn "Failed to get all objects #{get_uri.model} from #{get_uri.service} with scope='#{scope}': #{error}"
+          if (error = data[:error])
+            Rails.logger.warn "Failed to get all objects #{uri.model} from #{uri.service} with scope='#{scope}': #{error}"
           else
             puts "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
 
-            handler.call(:synchronization, data['objects'].map(&:with_indifferent_access))
+            handler.call(:synchronization, data[:objects].map(&:with_indifferent_access))
 
-            Artery.last_model_update_class.model_update!(uri, data['timestamp'])
+            Artery.last_model_update_class.model_update!(uri, data[:timestamp])
           end
         rescue Exception => e
           Rails.logger.error "Error in all objects request handling: #{e.inspect}\n#{e.backtrace}"
