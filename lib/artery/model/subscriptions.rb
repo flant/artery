@@ -46,7 +46,7 @@ module Artery
         # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
         def artery_add_get_subscriptions
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get) do |data, reply, sub|
-            puts "HEY-HEY-HEY, message on GET with arguments: `#{[data, reply, sub].inspect}`!"
+            Rails.logger.info "HEY-HEY-HEY, message on GET with arguments: `#{[data, reply, sub].inspect}`!"
             obj = artery_find data['uuid']
             service = data['service']
 
@@ -56,7 +56,7 @@ module Artery
           end
 
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_all) do |data, reply, sub|
-            puts "HEY-HEY-HEY, message on GET_ALL with arguments: `#{[data, reply, sub].inspect}`!"
+            Rails.logger.info "HEY-HEY-HEY, message on GET_ALL with arguments: `#{[data, reply, sub].inspect}`!"
 
             service = data['service']
             scope   = "artery_#{data['scope'] || 'all'}"
@@ -73,10 +73,10 @@ module Artery
           end
 
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_updates) do |data, reply, sub|
-            puts "HEY-HEY-HEY, message on GET_UPDATES with arguments: `#{[data, reply, sub].inspect}`!"
+            Rails.logger.info "HEY-HEY-HEY, message on GET_UPDATES with arguments: `#{[data, reply, sub].inspect}`!"
 
             messages = Artery.message_class.since(artery_model_name, data['since'])
-            puts "MESSAGES: #{messages.inspect}"
+            Rails.logger.info "MESSAGES: #{messages.inspect}"
 
             Artery.publish(reply, updates: messages.map { |obj| obj.to_artery.merge('action' => obj.action) })
           end
