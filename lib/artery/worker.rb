@@ -7,7 +7,7 @@ module Artery
             model_subscriptions(model_class)
           end
         rescue Exception => e
-          puts "WORKER ERROR: #{e.inspect}: #{e.backtrace.inspect}"
+          Rails.logger.error "WORKER ERROR: #{e.inspect}: #{e.backtrace.inspect}"
           retry
         end
       end
@@ -32,7 +32,7 @@ module Artery
     end
 
     def subscribe(uri, handler)
-      puts "Subscribing on `#{uri}`"
+      Rails.logger.info "Subscribing on `#{uri}`"
       Artery.subscribe uri.to_route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
         begin
           handle_subscription(handler, data, reply, from)
@@ -46,13 +46,13 @@ module Artery
 
     # rubocop:disable all
     def handle_subscription(handler, data, reply, from)
-      puts "GOT MESSAGE: #{[data, reply, from].inspect}"
+      Rails.logger.info "GOT MESSAGE: #{[data, reply, from].inspect}"
 
       from_uri = Routing.uri(from)
 
       handle = proc do |d, r, f|
         if data[:updated_by_service].to_s == Artery.service_name.to_s
-          puts 'SKIPPING UPDATES MADE BY US'
+          Rails.logger.info 'SKIPPING UPDATES MADE BY US'
           next
         end
 
@@ -91,7 +91,7 @@ module Artery
           if (error = data[:error])
             Rails.logger.warn "Failed to get all objects #{uri.model} from #{uri.service} with scope='#{scope}': #{error}"
           else
-            puts "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
+            Rails.logger.info "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
 
             handler.call(:synchronization, data[:objects].map(&:with_indifferent_access))
 
@@ -109,7 +109,7 @@ module Artery
       Artery.request uri.to_route, since: last_model_update_at.to_f do |data|
         begin
 
-          puts "HEY-HEY, LAST_UPDATES: #{[data].inspect}"
+          Rails.logger.info "HEY-HEY, LAST_UPDATES: #{[data].inspect}"
 
           data['updates'].each do |update|
             from = Routing.uri(service: uri.service, model: uri.model, action: update.delete('action')).to_route

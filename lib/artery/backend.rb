@@ -30,7 +30,7 @@ module Artery
         raise ArgumentError, 'You must provide block to handle response' unless block_given?
 
         backend.request(route, data.to_json) do |message|
-          puts "RESPONSE RECEIVED: #{message}"
+          Rails.logger.info "RESPONSE RECEIVED: #{message}"
           begin
             message ||= '{}'
             yield(JSON.parse(message).with_indifferent_access)
@@ -42,7 +42,7 @@ module Artery
 
       def publish(route, data)
         backend.publish(route, data.to_json) do
-          puts 'PUBLISHED!'
+          Rails.logger.info 'PUBLISHED!'
         end
       end
     end
