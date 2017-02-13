@@ -4,7 +4,7 @@ module Artery
 
     included do
       class << self
-        attr_accessor :message_class, :last_model_update_class, :service_name, :backend_config
+        attr_accessor :message_class, :last_model_update_class, :service_name, :backend_config, :request_timeout
 
         # Ability to redefine message class (for example, for non-activerecord applications)
         def message_class
@@ -17,6 +17,10 @@ module Artery
 
         def service_name
           @service_name || raise('Artery service_name must be configured!')
+        end
+
+        def request_timeout
+          @request_timeout || ENV.fetch('ARTERY_REQUEST_TIMEOUT') { 10 }
         end
 
         def backend_config

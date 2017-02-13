@@ -23,13 +23,16 @@ module Artery
 
       def request(*args, &blk)
         if EM.reactor_running?
-          ::NATS.request(*args, &blk)
+          sid = ::NATS.request(*args, &blk)
+          ::NATS.timeout(sid, Artery.request_timeout) { raise Artery::TimeoutError }
         else
           start do
-            ::NATS.request(*args) do |*resp|
+            sid = ::NATS.request(*args) do |*resp|
               yield(*resp) if block_given?
               stop
             end
+
+            ::NATS.timeout(sid, Artery.request_timeout) { raise Artery::TimeoutError }
           end
         end
       end

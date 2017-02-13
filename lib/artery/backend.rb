@@ -1,4 +1,6 @@
 module Artery
+  class TimeoutError < StandardError; end
+
   module Backend
     extend ActiveSupport::Concern
 
