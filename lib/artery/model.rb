@@ -29,6 +29,7 @@ module Artery
       # Always clone artery configuration in subclass from parent class
       def inherited(_subClass)
         self.artery = artery.clone
+        super
       end
 
       def artery_model_name
