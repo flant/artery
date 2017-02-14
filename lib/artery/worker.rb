@@ -66,7 +66,7 @@ module Artery
                               plural: true,
                               action: :get
 
-        Artery.request get_uri.to_route, uuid: data['uuid'], service: Artery.service_name do |on|
+        Artery.request get_uri.to_route, { uuid: data['uuid'], service: Artery.service_name }, multihandler: true do |on|
           on.success do |attributes|
             handle.call(attributes)
 
@@ -88,7 +88,7 @@ module Artery
 
     def receive_all_objects(uri, scope, handler)
       uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_all)
-      Artery.request uri.to_route, service: Artery.service_name, scope: scope do |on|
+      Artery.request uri.to_route, { service: Artery.service_name, scope: scope }, multihandler: true do |on|
         on.success do |data|
           begin
             Rails.logger.info "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
@@ -110,7 +110,7 @@ module Artery
 
     def receive_updates(uri, handler, last_model_update_at)
       uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
-      Artery.request uri.to_route, since: last_model_update_at.to_f do |on|
+      Artery.request uri.to_route, { since: last_model_update_at.to_f }, multihandler: true do |on|
         on.success do |data|
           begin
             Rails.logger.info "HEY-HEY, LAST_UPDATES: #{[data].inspect}"

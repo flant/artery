@@ -26,15 +26,15 @@ module Artery
         end
       end
 
-      def request(route, data = nil, _options = {}, &blk)
+      def request(route, data = nil, options = {}, &blk)
         raise ArgumentError, 'You must provide block to handle response' unless block_given?
         handler = Multiblock.wrapper
 
-        case blk.arity
-        when 0
-          handler.success(&blk)
-        when 1
+        # FIXME: Temporary for backward compatibility
+        if options[:multihandler] == true
           yield(handler)
+        else
+          handler.success(&blk)
         end
 
         backend.request(route, data.to_json) do |message|
