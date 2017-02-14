@@ -4,10 +4,15 @@ module Artery
       attr_accessor :service, :model, :action, :plural
       def initialize(arg)
         case arg
+        when URI
+          @service = arg.service
+          @model   = arg.model
+          @action  = arg.action
+          @plural  = arg.plural
         when String
           @service, model, @action = arg.split('.').map(&:to_sym)
           @model = model.to_s.singularize.to_sym
-          @plural = (@model == model)
+          @plural = (@model != model)
         when Hash
           @service = arg[:service] || Artery.service_name
           @model   = arg[:model].try(:to_sym)
@@ -36,7 +41,7 @@ module Artery
     module_function
 
     def uri(arg)
-      URI.new arg
+      URI.new(arg)
     end
   end
 end

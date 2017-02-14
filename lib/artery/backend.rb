@@ -29,6 +29,7 @@ module Artery
       def request(route, data = nil, options = {}, &blk)
         raise ArgumentError, 'You must provide block to handle response' unless block_given?
         handler = Multiblock.wrapper
+        uri = Routing.uri(route)
 
         # FIXME: Temporary for backward compatibility
         if options[:multihandler] == true
@@ -37,7 +38,7 @@ module Artery
           handler.success(&blk)
         end
 
-        backend.request(route, data.to_json) do |message|
+        backend.request(uri.to_route, data.to_json) do |message|
           if message.is_a?(Error) # timeout case
             handler.call :error, message
           else
@@ -47,7 +48,7 @@ module Artery
               response = JSON.parse(message).with_indifferent_access
 
               if response.key?(:error)
-                handler.call :error, RequestError.new(Routing.uri(route), response)
+                handler.call :error, RequestError.new(uri, response)
               else
                 handler.call :success, response
               end
