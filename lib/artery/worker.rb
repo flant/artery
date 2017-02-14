@@ -66,14 +66,16 @@ module Artery
                               plural: true,
                               action: :get
 
-        Artery.request get_uri.to_route, uuid: data['uuid'], service: Artery.service_name do |attributes|
-          if (error = attributes[:error])
-            Rails.logger.warn "Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{error}"
-          else
+        Artery.request get_uri.to_route, uuid: data['uuid'], service: Artery.service_name do |on|
+          on.success do |attributes|
             handle.call(attributes)
+
+            Artery.last_model_update_class.model_update!(from_uri, data[:timestamp])
           end
 
-          Artery.last_model_update_class.model_update!(from_uri, data[:timestamp])
+          on.error do |e|
+            Rails.logger.warn "Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{e.message}"
+          end
         end
       when :delete
         handle.call(data, reply, from)
@@ -86,19 +88,21 @@ module Artery
 
     def receive_all_objects(uri, scope, handler)
       uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_all)
-      Artery.request uri.to_route, service: Artery.service_name, scope: scope do |data|
-        begin
-          if (error = data[:error])
-            Rails.logger.warn "Failed to get all objects #{uri.model} from #{uri.service} with scope='#{scope}': #{error}"
-          else
+      Artery.request uri.to_route, service: Artery.service_name, scope: scope do |on|
+        on.success do |data|
+          begin
             Rails.logger.info "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
 
             handler.call(:synchronization, data[:objects].map(&:with_indifferent_access))
 
             Artery.last_model_update_class.model_update!(uri, data[:timestamp])
+          rescue Exception => e
+            Rails.logger.error "Error in all objects request handling: #{e.inspect}\n#{e.backtrace}"
           end
-        rescue Exception => e
-          Rails.logger.error "Error in all objects request handling: #{e.inspect}\n#{e.backtrace}"
+        end
+
+        on.error do |e|
+          Rails.logger.warn "Failed to get all objects #{uri.model} from #{uri.service} with scope='#{scope}': #{e.message}"
         end
       end
     end
@@ -106,17 +110,22 @@ module Artery
 
     def receive_updates(uri, handler, last_model_update_at)
       uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
-      Artery.request uri.to_route, since: last_model_update_at.to_f do |data|
-        begin
+      Artery.request uri.to_route, since: last_model_update_at.to_f do |on|
+        on.success do |data|
+          begin
+            Rails.logger.info "HEY-HEY, LAST_UPDATES: #{[data].inspect}"
 
-          Rails.logger.info "HEY-HEY, LAST_UPDATES: #{[data].inspect}"
-
-          data['updates'].each do |update|
-            from = Routing.uri(service: uri.service, model: uri.model, action: update.delete('action')).to_route
-            handle_subscription(handler, update, nil, from)
+            data['updates'].each do |update|
+              from = Routing.uri(service: uri.service, model: uri.model, action: update.delete('action')).to_route
+              handle_subscription(handler, update, nil, from)
+            end
+          rescue Exception => e
+            Rails.logger.error "Error in updates request handling: #{e.inspect}\n#{e.backtrace}"
           end
-        rescue Exception => e
-          Rails.logger.error "Error in updates request handling: #{e.inspect}\n#{e.backtrace}"
+        end
+
+        on.error do |e|
+          Rails.logger.warn "Failed to get updates for #{uri.model} from #{uri.service}: #{e.message}"
         end
       end
     end

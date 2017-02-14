@@ -1,6 +1,4 @@
 module Artery
-  class TimeoutError < StandardError; end
-
   module Backend
     extend ActiveSupport::Concern
 
@@ -28,16 +26,34 @@ module Artery
         end
       end
 
-      def request(route, data = nil, _options = {})
+      def request(route, data = nil, _options = {}, &blk)
         raise ArgumentError, 'You must provide block to handle response' unless block_given?
+        handler = Multiblock.wrapper
+
+        case blk.arity
+        when 0
+          handler.success(&blk)
+        when 1
+          yield(handler)
+        end
 
         backend.request(route, data.to_json) do |message|
-          Rails.logger.info "RESPONSE RECEIVED: #{message}"
-          begin
-            message ||= '{}'
-            yield(JSON.parse(message).with_indifferent_access)
-          rescue JSON::ParserError
-            Rails.logger.error "Received message from #{route} in wrong format: #{message}"
+          if message.is_a?(Error) # timeout case
+            handler.call :error, message
+          else
+            Rails.logger.info "RESPONSE RECEIVED: #{message}"
+            begin
+              message ||= '{}'
+              response = JSON.parse(message).with_indifferent_access
+
+              if response.key?(:error)
+                handler.call :error, RequestError.new(Routing.uri(route), response)
+              else
+                handler.call :success, response
+              end
+            rescue JSON::ParserError
+              Rails.logger.error "Received message from #{route} in wrong format: #{message}"
+            end
           end
         end
       end

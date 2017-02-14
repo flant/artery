@@ -38,12 +38,12 @@ module Artery
 
         def artery_watch_model(service:, model: nil, action: nil, **kwargs, &blk)
           model  ||= artery_model_name
-          action ||= '*' # FIXME: This leads to handling GET messages, which is useless reaction
+          action ||= '*'
 
           artery_add_subscription Routing.uri(service: service, model: model, action: action), kwargs, &blk
         end
 
-        # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+        # rubocop:disable Metrics/AbcSize
         def artery_add_get_subscriptions
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get) do |data, reply, sub|
             Rails.logger.info "HEY-HEY-HEY, message on GET with arguments: `#{[data, reply, sub].inspect}`!"

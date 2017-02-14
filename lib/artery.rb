@@ -1,4 +1,5 @@
 require 'artery/engine'
+require 'artery/errors'
 require 'artery/backends/base'
 
 require 'multiblock'
