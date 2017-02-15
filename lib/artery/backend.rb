@@ -21,7 +21,7 @@ module Artery
             message ||= '{}'
             yield(JSON.parse(message).with_indifferent_access, reply, from)
           rescue JSON::ParserError
-            Rails.logger.error "Received message from #{from} in wrong format: #{message}"
+            Artery.handle_error FormatError.new(from, message)
           end
         end
       end
@@ -42,7 +42,7 @@ module Artery
           if message.is_a?(Error) # timeout case
             handler.call :error, message
           else
-            Rails.logger.info "RESPONSE RECEIVED: #{message}"
+            Rails.logger.debug "RESPONSE RECEIVED: #{message}"
             begin
               message ||= '{}'
               response = JSON.parse(message).with_indifferent_access
@@ -53,7 +53,7 @@ module Artery
                 handler.call :success, response
               end
             rescue JSON::ParserError
-              Rails.logger.error "Received message from #{route} in wrong format: #{message}"
+              Artery.handle_error FormatError.new(route, message)
             end
           end
         end
@@ -61,7 +61,7 @@ module Artery
 
       def publish(route, data)
         backend.publish(route, data.to_json) do
-          Rails.logger.info 'PUBLISHED!'
+          Rails.logger.debug "PUBLISHED: #{data.to_json}"
         end
       end
     end
