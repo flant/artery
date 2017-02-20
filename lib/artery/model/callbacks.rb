@@ -8,8 +8,10 @@ module Artery
         after_update  :artery_on_update
         after_destroy :artery_on_destroy
 
-        after_archive   :artery_on_archive   if respond_to? :after_archive
-        after_unarchive :artery_on_unarchive if respond_to? :after_unarchive
+        if try(:is_archival?)
+          after_archive   :artery_on_archive
+          after_unarchive :artery_on_unarchive
+        end
       end
 
       def artery_on_create
