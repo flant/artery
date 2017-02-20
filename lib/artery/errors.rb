@@ -15,4 +15,38 @@ module Artery
   end
 
   class TimeoutError < Error; end
+
+  class FormatError < Error
+    attr_accessor :route, :msg
+
+    def initialize(route, msg)
+      @route = route
+      @msg = msg
+    end
+
+    def message
+      "Received message from #{route} in wrong format: #{msg}"
+    end
+  end
+
+  # ErrorHandler
+  class ErrorHandler
+    def self.handle(exception)
+      Rails.logger.error(exception.message)
+    end
+  end
+
+  if defined?(Raven)
+    class RavenErrorHandler < ErrorHandler
+      def self.handle(exception)
+        super
+
+        Raven.capture_exception(exception)
+      end
+    end
+  end
+
+  module_function def handle_error(exception)
+    Artery.error_handler.handle exception
+  end
 end
