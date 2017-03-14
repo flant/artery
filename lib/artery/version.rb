@@ -1,3 +1,3 @@
 module Artery
-  VERSION = '0.1.1'.freeze
+  VERSION = '0.1.11'.freeze
 end
