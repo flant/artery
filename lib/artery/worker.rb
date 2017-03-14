@@ -74,9 +74,13 @@ module Artery
 
         Artery.request get_uri.to_route, { uuid: data['uuid'], service: Artery.service_name }, multihandler: true do |on|
           on.success do |attributes|
-            handle.call(attributes)
+            begin
+              handle.call(attributes)
 
-            Artery.last_model_update_class.model_update!(from_uri, data[:timestamp])
+              Artery.last_model_update_class.model_update!(from_uri, data[:timestamp])
+            rescue Exception => e
+              Artery.handle_error Error.new("Error in subscription handler: #{e.inspect}\n#{e.backtrace.join("\n")}")
+            end
           end
 
           on.error do |e|
