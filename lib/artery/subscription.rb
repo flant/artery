@@ -1,0 +1,82 @@
+module Artery
+  class Subscription
+    autoload :Synchronization, 'artery/subscription/synchronization'
+    include Synchronization
+
+    attr_accessor :uri, :model, :handler, :options
+
+    DEFAULTS = {
+      synchronize:         false,
+      synchronize_updates: true
+    }.freeze
+
+    def initialize(model, uri, handler:, **options)
+      @uri     = uri
+      @model   = model
+      @handler = handler
+      @options = DEFAULTS.merge(options)
+
+      Artery.add_subscription self
+    end
+
+    def info
+      @info ||= Artery.subscription_info_class.find_for_subscription(self)
+    end
+
+    def last_model_updated_at
+      info.last_message_at
+    end
+
+    def model_update!(timestamp)
+      info.update! last_message_at: Time.zone.at(timestamp.to_f) if timestamp.to_f > last_model_updated_at.to_f
+    end
+
+    # rubocop:disable all
+    def handle(data, reply, from)
+      Artery.logger.debug "GOT MESSAGE: #{[data, reply, from].inspect}"
+
+      from_uri = Routing.uri(from)
+
+      handle = proc do |d, r, f|
+        if data[:updated_by_service].to_s == Artery.service_name.to_s
+          Artery.logger.debug 'SKIPPING UPDATES MADE BY US'
+          next
+        end
+
+        handler.call(from_uri.action, d, r, f) || handler.call(:_default, d, r, f)
+      end
+
+      case from_uri.action
+      when :create, :update
+        get_uri = Routing.uri service: from_uri.service,
+                              model: from_uri.model,
+                              plural: true,
+                              action: :get
+
+        Artery.request get_uri.to_route, uuid: data['uuid'], service: Artery.service_name do |on|
+          on.success do |attributes|
+            begin
+              handle.call(attributes)
+
+              model_update!(data[:timestamp])
+            rescue Exception => e
+              Artery.handle_error Error.new("Error in subscription handler: #{e.inspect}\n#{e.backtrace.join("\n")}")
+            end
+          end
+
+          on.error do |e|
+            error = Error.new("Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{e.message}")
+            Artery.handle_error error
+          end
+        end
+      when :delete
+        handle.call(data, reply, from)
+
+        model_update!(data[:timestamp])
+      else
+        handle.call(data, reply, from)
+      end
+    end
+    # rubocop:enable all
+  end
+end

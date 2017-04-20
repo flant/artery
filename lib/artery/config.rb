@@ -2,22 +2,31 @@ module Artery
   module Config
     extend ActiveSupport::Concern
 
+    # rubocop:disable Metrics/BlockLength
     included do
       class << self
-        attr_accessor :message_class, :last_model_update_class, :service_name, :backend_config, :request_timeout,
-                      :error_handler
+        attr_accessor :message_class, :subscription_info_class, :service_name, :backend_config, :request_timeout,
+                      :error_handler, :logger
 
         # Ability to redefine message class (for example, for non-activerecord applications)
         def message_class
           @message_class || Artery::Message
         end
 
-        def last_model_update_class
-          @last_model_update_class || Artery::LastModelUpdate
+        def subscription_info_class
+          @subscription_info_class || Artery::SubscriptionInfo
         end
 
         def service_name
           @service_name || raise('Artery service_name must be configured!')
+        end
+
+        def logger
+          @logger ||= if defined?(Rails)
+                        Rails.logger
+                      else
+                        Logger.new(STDOUT)
+                      end
         end
 
         def request_timeout
@@ -39,6 +48,7 @@ module Artery
         end
       end
     end
+    # rubocop:enable Metrics/BlockLength
 
     module ClassMethods
       def configure

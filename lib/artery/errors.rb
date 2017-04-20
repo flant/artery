@@ -32,7 +32,7 @@ module Artery
   # ErrorHandler
   class ErrorHandler
     def self.handle(exception)
-      Rails.logger.error(exception.message)
+      Artery.logger.error exception.message
     end
   end
 

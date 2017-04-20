@@ -26,23 +26,18 @@ module Artery
         end
       end
 
-      def request(route, data = nil, options = {}, &blk)
+      def request(route, data = nil, _options = {})
         raise ArgumentError, 'You must provide block to handle response' unless block_given?
         handler = Multiblock.wrapper
         uri = Routing.uri(route)
 
-        # FIXME: Temporary for backward compatibility
-        if options[:multihandler] == true
-          yield(handler)
-        else
-          handler.success(&blk)
-        end
+        yield(handler)
 
         backend.request(uri.to_route, data.to_json) do |message|
           if message.is_a?(Error) # timeout case
             handler.call :error, message
           else
-            Rails.logger.debug "RESPONSE RECEIVED: #{message}"
+            Artery.logger.debug "RESPONSE RECEIVED: #{message}"
             begin
               message ||= '{}'
               response = JSON.parse(message).with_indifferent_access
@@ -61,7 +56,7 @@ module Artery
 
       def publish(route, data)
         backend.publish(route, data.to_json) do
-          Rails.logger.debug "PUBLISHED: #{data.to_json}"
+          Artery.logger.debug "PUBLISHED: #{data.to_json}"
         end
       end
     end
