@@ -33,6 +33,8 @@ module Artery
 
         yield(handler)
 
+        data ||= {}
+
         backend.request(uri.to_route, data.to_json) do |message|
           if message.is_a?(Error) # timeout case
             handler.call :error, message
