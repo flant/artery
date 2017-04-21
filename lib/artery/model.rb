@@ -1,7 +1,7 @@
 module Artery
   module Model
-    autoload :Subscriptions, 'artery/model/subscriptions'
-    autoload :Callbacks,     'artery/model/callbacks'
+    autoload :Subscriptions,  'artery/model/subscriptions'
+    autoload :Callbacks,      'artery/model/callbacks'
 
     def artery_model(options = {})
       extend ClassMethods
@@ -16,8 +16,6 @@ module Artery
       self.artery = options.merge(representations: {
                                     _default: proc { attributes }
                                   })
-
-      Artery.register_model self
 
       include Subscriptions
       include Callbacks if artery_source_model?
