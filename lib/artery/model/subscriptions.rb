@@ -51,11 +51,15 @@ module Artery
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_all) do |data, reply, sub|
             Artery.logger.info "HEY-HEY-HEY, message on GET_ALL with arguments: `#{[data, reply, sub].inspect}`!"
 
-            service = data['service']
-            scope   = "artery_#{data['scope'] || 'all'}"
+            service  = data['service']
+            scope    = "artery_#{data['scope'] || 'all'}"
+            per_page = data['per_page']
+            page     = data['page'] || 0
 
             data = if respond_to?(scope)
-                     objects = send(scope).map { |obj| obj.to_artery(service) }
+                     relation = send(scope)
+                     relation = relation.offset(page * per_page).limit(per_page) if per_page
+                     objects = relation.map { |obj| obj.to_artery(service) }
                      { objects: objects, timestamp: Time.zone.now.to_f }
                    else
                      Artery.logger.error "No artery scope '#{data['scope']}' defined!"

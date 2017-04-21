@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    artery (0.1.11)
+    artery (0.2.0)
       multiblock (~> 0.2)
       nats (~> 0.8)
       rails (>= 4.2, < 6.0)
@@ -61,8 +61,8 @@ GEM
       factory_girl (~> 4.8.0)
       railties (>= 3.0.0)
     ffi (1.9.14)
-    globalid (0.3.7)
-      activesupport (>= 4.1.0)
+    globalid (0.4.0)
+      activesupport (>= 4.2.0)
     i18n (0.8.0)
     iniparse (1.4.2)
     loofah (2.0.3)
@@ -76,8 +76,8 @@ GEM
     mini_portile2 (2.1.0)
     minitest (5.10.1)
     multiblock (0.2.1)
-    nats (0.8.0)
-      eventmachine (~> 1.2, >= 1.2.0)
+    nats (0.8.2)
+      eventmachine (~> 1.2, >= 1.2)
     nio4r (1.2.1)
     nokogiri (1.7.0.1)
       mini_portile2 (~> 2.1.0)
