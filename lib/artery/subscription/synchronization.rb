@@ -100,6 +100,7 @@ module Artery
                 from = Routing.uri(service: uri.service, model: uri.model, action: update.delete('action')).to_route
                 handle(update, nil, from)
               end
+              synchronization_in_progress!(false)
             rescue Exception => e
               synchronization_in_progress!(false)
               Artery.handle_error Error.new("Error in updates request handling: #{e.inspect}\n#{e.backtrace.join("\n")}")
