@@ -30,7 +30,7 @@ module Artery
         end
 
         def request_timeout
-          @request_timeout || ENV.fetch('ARTERY_REQUEST_TIMEOUT') { 10 }
+          @request_timeout || ENV.fetch('ARTERY_REQUEST_TIMEOUT') { 30 }
         end
 
         def error_handler
