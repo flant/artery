@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Artery
   class Subscription
     module Synchronization
@@ -24,10 +25,16 @@ module Artery
       end
 
       def synchronization_in_progress!(val = true)
+        if val
+          Artery.synchronizing_subscriptions << self
+        else
+          Artery.synchronizing_subscriptions.delete self
+        end
+
         info.update! synchronization_in_progress: val
       end
 
-      def syncronization_page_update!(page)
+      def synchronization_page_update!(page)
         info.update! synchronization_page: page
       end
 
@@ -64,11 +71,11 @@ module Artery
 
               handler.call(:synchronization, objects, page)
 
-              if synchronization_per_page && objects.count > 0
-                syncronization_page_update!(page)
+              if synchronization_per_page && objects.count.positive?
+                synchronization_page_update!(page)
                 receive_all
               else
-                syncronization_page_update!(nil) if synchronization_per_page
+                synchronization_page_update!(nil) if synchronization_per_page
                 synchronization_in_progress!(false)
                 model_update!(data[:timestamp])
               end

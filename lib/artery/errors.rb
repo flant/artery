@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Artery
   class Error < StandardError; end
 

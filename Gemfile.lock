@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    artery (0.2.1)
+    artery (0.3.0)
       multiblock (~> 0.2)
       nats (~> 0.8)
       rails (>= 4.2, < 6.0)
@@ -49,22 +49,22 @@ GEM
     arel (7.1.4)
     ast (2.3.0)
     builder (3.2.3)
-    childprocess (0.5.9)
+    childprocess (0.7.1)
       ffi (~> 1.0, >= 1.0.11)
     concurrent-ruby (1.0.4)
     diff-lcs (1.2.5)
     erubis (2.7.0)
-    eventmachine (1.2.3)
+    eventmachine (1.2.5)
     factory_girl (4.8.0)
       activesupport (>= 3.0.0)
     factory_girl_rails (4.8.0)
       factory_girl (~> 4.8.0)
       railties (>= 3.0.0)
-    ffi (1.9.14)
+    ffi (1.9.18)
     globalid (0.4.0)
       activesupport (>= 4.2.0)
     i18n (0.8.0)
-    iniparse (1.4.2)
+    iniparse (1.4.4)
     loofah (2.0.3)
       nokogiri (>= 1.5.9)
     mail (2.6.6)
@@ -81,8 +81,8 @@ GEM
     nio4r (1.2.1)
     nokogiri (1.7.0.1)
       mini_portile2 (~> 2.1.0)
-    overcommit (0.37.0)
-      childprocess (~> 0.5.8)
+    overcommit (0.40.0)
+      childprocess (~> 0.6, >= 0.6.3)
       iniparse (~> 1.4)
     parser (2.3.3.1)
       ast (~> 2.2)
@@ -168,4 +168,4 @@ DEPENDENCIES
   sqlite3
 
 BUNDLED WITH
-   1.13.7
+   1.15.3

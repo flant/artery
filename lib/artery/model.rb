@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Artery
   module Model
     autoload :Subscriptions,  'artery/model/subscriptions'
@@ -25,7 +26,7 @@ module Artery
 
     module ClassMethods
       # Always clone artery configuration in subclass from parent class
-      def inherited(_subClass)
+      def inherited(_sub_class)
         self.artery = artery.clone
         super
       end

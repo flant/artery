@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Artery
   module Backend
     extend ActiveSupport::Concern
@@ -18,7 +19,8 @@ module Artery
       def subscribe(route, options = {})
         backend.subscribe(route, options) do |message, reply, from|
           begin
-            message ||= '{}'
+            message = '{}' if message.blank?
+
             yield(JSON.parse(message).with_indifferent_access, reply, from)
           rescue JSON::ParserError
             Artery.handle_error FormatError.new(from, message)
