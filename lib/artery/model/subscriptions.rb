@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Artery
   module Model
     module Subscriptions
@@ -72,7 +73,9 @@ module Artery
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_updates) do |data, reply, sub|
             Artery.logger.info "HEY-HEY-HEY, message on GET_UPDATES with arguments: `#{[data, reply, sub].inspect}`!"
 
-            messages = Artery.message_class.since(artery_model_name, data['since'])
+            since = (data['since'] * 10**5).ceil.to_f / 10**5 # a little less accuracy
+
+            messages = Artery.message_class.since(artery_model_name, since)
             Artery.logger.info "MESSAGES: #{messages.inspect}"
 
             Artery.publish(reply, updates: messages.map { |obj| obj.to_artery.merge('action' => obj.action) })

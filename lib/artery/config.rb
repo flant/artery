@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Artery
   module Config
     extend ActiveSupport::Concern
@@ -30,7 +31,7 @@ module Artery
         end
 
         def request_timeout
-          @request_timeout || ENV.fetch('ARTERY_REQUEST_TIMEOUT') { 30 }
+          @request_timeout || ENV.fetch('ARTERY_REQUEST_TIMEOUT') { '30' }.to_i
         end
 
         def error_handler
@@ -42,8 +43,8 @@ module Artery
             servers:            ENV.fetch('ARTERY_SERVERS')            { '' }.split(','),
             user:               ENV.fetch('ARTERY_USER')               { nil },
             password:           ENV.fetch('ARTERY_PASSWORD')           { nil },
-            reconnect_timeout:  ENV.fetch('ARTERY_RECONNECT_TIMEOUT')  { 1 },
-            reconnect_attempts: ENV.fetch('ARTERY_RECONNECT_ATTEMPTS') { 10 }
+            reconnect_timeout:  ENV.fetch('ARTERY_RECONNECT_TIMEOUT')  { '1' }.to_i,
+            reconnect_attempts: ENV.fetch('ARTERY_RECONNECT_ATTEMPTS') { '10' }.to_i
           }
         end
       end

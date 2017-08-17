@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Artery
   class Subscription
     autoload :Synchronization, 'artery/subscription/synchronization'
@@ -43,7 +44,11 @@ module Artery
           next
         end
 
+        handler.call(:_before_action, from_uri.action, d, r, f)
+
         handler.call(from_uri.action, d, r, f) || handler.call(:_default, d, r, f)
+
+        handler.call(:_after_action, from_uri.action, d, r, f)
       end
 
       case from_uri.action

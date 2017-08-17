@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 if defined?(ActiveRecord)
   module Artery
     class SubscriptionInfo < ActiveRecord::Base

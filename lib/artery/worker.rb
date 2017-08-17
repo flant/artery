@@ -1,19 +1,36 @@
+# frozen_string_literal: true
 module Artery
   class Worker
     class Error < Artery::Error; end
 
-    def execute
+    def subscribe_healthz
+      healthz_route = "#{Artery.service_name}.worker.healthz"
+      Artery.logger.debug "Subscribing on '#{healthz_route}'"
+
+      Artery.subscribe healthz_route do |_data, reply, _from|
+        Artery.publish reply, status: :ok
+      end
+    end
+
+    # rubocop:disable Metrics/AbcSize, Lint/RescueException
+    def run
       if Artery.subscriptions.blank?
         Artery.logger.warn 'No subscriptions defined, exiting...'
         return
       end
 
+      Artery.handle_signals
+
+      @sync = Artery::Sync.new
+
       Artery.start do
         tries = 0
         begin
-          Artery.subscriptions.each do |subscription|
-            subscription.synchronize!
+          subscribe_healthz
 
+          @sync.execute
+
+          Artery.subscriptions.each do |subscription|
             Artery.logger.debug "Subscribing on '#{subscription.uri}'"
             Artery.subscribe subscription.uri.to_route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
               begin
@@ -32,6 +49,9 @@ module Artery
           Artery.handle_error Error.new('Worker failed 5 times and exited.')
         end
       end
+    ensure
+      Artery.clear_synchronizing_subscriptions!
     end
+    # rubocop:enable Metrics/AbcSize, Lint/RescueException
   end
 end

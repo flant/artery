@@ -5,4 +5,8 @@ require ENV['APP_PATH'] || File.join(File.expand_path('.'), 'config', 'applicati
 Rails.application.initialize!
 Rails.application.eager_load!
 
-Artery::Worker.new.run
+begin
+  Artery::Sync.new.execute
+ensure
+  Artery.clear_synchronizing_subscriptions!
+end
