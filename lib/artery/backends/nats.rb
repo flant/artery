@@ -4,8 +4,6 @@ require 'nats/client'
 module Artery
   module Backends
     class NATS < Base
-      REQUEST_TIMEOUT = 5.seconds
-
       def start(&blk)
         ::NATS.start(options, &blk)
       end
@@ -22,19 +20,40 @@ module Artery
         ::NATS.unsubscribe(*args, &blk)
       end
 
-      def request(*args, &blk)
+      def request(*args)
         if EM.reactor_running?
-          sid = ::NATS.request(*args, &blk)
-          ::NATS.timeout(sid, Artery.request_timeout) { yield(TimeoutError.new) }
+          sid = ::NATS.request(*args) do |*resp|
+            yield(*resp)
+
+            requests.delete(sid)
+            stop if @inside_sync_request
+          end
+
+          requests << sid
+
+          ::NATS.timeout(sid, Artery.request_timeout) do
+            yield(TimeoutError.new)
+
+            requests.delete(sid)
+            stop if @inside_sync_request
+          end
         else
           start do
+            @inside_sync_request = true
+
             sid = ::NATS.request(*args) do |*resp|
               yield(*resp)
+
+              requests.delete(sid)
               stop
             end
 
+            requests << sid
+
             ::NATS.timeout(sid, Artery.request_timeout) do
               yield(TimeoutError.new)
+
+              requests.delete(sid)
               stop
             end
           end
@@ -55,10 +74,17 @@ module Artery
       end
 
       def stop(*args, &blk)
+        return false unless requests.blank?
+
         ::NATS.stop(*args, &blk)
+        true
       end
 
       private
+
+      def requests
+        @requests ||= []
+      end
 
       # rubocop:disable Metrics/AbcSize
       def options
