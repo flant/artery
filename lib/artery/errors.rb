@@ -1,13 +1,26 @@
 # frozen_string_literal: true
 module Artery
-  class Error < StandardError; end
+  class Error < StandardError
+    attr_accessor :artery_context
+
+    def initialize(message = nil, **context)
+      super message
+
+      @original_exception = context.delete(:original_exception)
+      @artery_context = context
+
+      set_backtrace @original_exception ? @original_exception.backtrace : caller if backtrace.blank?
+    end
+  end
 
   class RequestError < Error
     attr_accessor :uri, :response
 
-    def initialize(uri, response)
+    def initialize(uri, response, **context)
       @uri = uri
       @response = response || {}
+
+      super nil, **context
     end
 
     def message
@@ -20,9 +33,11 @@ module Artery
   class FormatError < Error
     attr_accessor :route, :msg
 
-    def initialize(route, msg)
+    def initialize(route, msg, **context)
       @route = route
       @msg = msg
+
+      super nil, **context
     end
 
     def message
@@ -42,7 +57,12 @@ module Artery
       def self.handle(exception)
         super
 
-        Raven.capture_exception(exception)
+        options = {
+          extra: {}
+        }
+        options[:extra][:artery] = exception.artery_context if exception.respond_to?(:artery_context)
+
+        Raven.capture_exception(exception, options)
       end
     end
   end

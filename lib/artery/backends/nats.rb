@@ -20,6 +20,7 @@ module Artery
         ::NATS.unsubscribe(*args, &blk)
       end
 
+      # rubocop:disable Metrics/AbcSize
       def request(*args)
         if EM.reactor_running?
           sid = ::NATS.request(*args) do |*resp|
@@ -32,7 +33,7 @@ module Artery
           requests << sid
 
           ::NATS.timeout(sid, Artery.request_timeout) do
-            yield(TimeoutError.new)
+            yield(TimeoutError.new(request: { route: args[0], data: args[1] }))
 
             requests.delete(sid)
             stop if @inside_sync_request
@@ -51,7 +52,7 @@ module Artery
             requests << sid
 
             ::NATS.timeout(sid, Artery.request_timeout) do
-              yield(TimeoutError.new)
+              yield(TimeoutError.new(request: { route: args[0], data: args[1] }))
 
               requests.delete(sid)
               stop
@@ -59,6 +60,7 @@ module Artery
           end
         end
       end
+      # rubocop:enable Metrics/AbcSize
 
       def publish(*args, &blk)
         if EM.reactor_running?

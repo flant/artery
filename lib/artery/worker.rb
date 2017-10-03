@@ -36,14 +36,19 @@ module Artery
               begin
                 subscription.handle(data, reply, from)
               rescue Exception => e
-                Artery.handle_error Error.new("Error in subscription handling: #{e.inspect}\n#{e.backtrace.join("\n")}")
+                Artery.handle_error Error.new("Error in subscription handling: #{e.inspect}",
+                                              original_exception: e,
+                                              subscription: {
+                                                route: from,
+                                                data: data.to_json
+                                              })
               end
             end
           end
         rescue Exception => e
           tries += 1
 
-          Artery.handle_error Error.new("WORKER ERROR: #{e.inspect}: #{e.backtrace.join("\n")}")
+          Artery.handle_error Error.new("WORKER ERROR: #{e.inspect}", original_exception: e)
           retry if tries <= 5
 
           Artery.handle_error Error.new('Worker failed 5 times and exited.')

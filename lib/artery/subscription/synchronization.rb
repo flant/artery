@@ -51,7 +51,7 @@ module Artery
         end
       end
 
-      # rubocop:disable Metrics/AbcSize, Lint/RescueException
+      # rubocop:disable Metrics/AbcSize, Lint/RescueException, Metrics/MethodLength, Metrics/BlockLength
       def receive_all
         all_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_all)
 
@@ -59,10 +59,14 @@ module Artery
 
         objects = nil
 
-        Artery.request all_uri.to_route, service: Artery.service_name,
-                                         scope: synchronization_scope,
-                                         page: page,
-                                         per_page: synchronization_per_page do |on|
+        all_data = {
+          service: Artery.service_name,
+          scope: synchronization_scope,
+          page: page,
+          per_page: synchronization_per_page
+        }
+
+        Artery.request all_uri.to_route, all_data do |on|
           on.success do |data|
             begin
               Artery.logger.debug "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
@@ -82,14 +86,20 @@ module Artery
 
             rescue Exception => e
               synchronization_in_progress!(false)
-              Artery.handle_error Error.new("Error in all objects request handling: #{e.inspect}\n#{e.backtrace}")
+              Artery.handle_error Error.new("Error in all objects request handling: #{e.inspect}",
+                                            original_exception: e,
+                                            request: {
+                                              route: all_uri.to_route,
+                                              data: all_data.to_json
+                                            },
+                                            response: data.to_json)
             end
           end
 
           on.error do |e|
             synchronization_in_progress!(false)
             error = Error.new "Failed to get all objects #{uri.model} from #{uri.service} with scope='#{synchronization_scope}': "\
-                              "#{e.message}"
+                              "#{e.message}", e.artery_context
             Artery.handle_error error
           end
         end
@@ -97,8 +107,9 @@ module Artery
 
       def receive_updates
         updates_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
+        updates_data = { since: last_model_updated_at.to_f }
 
-        Artery.request updates_uri.to_route, since: last_model_updated_at.to_f do |on|
+        Artery.request updates_uri.to_route, updates_data do |on|
           on.success do |data|
             begin
               Artery.logger.debug "HEY-HEY, LAST_UPDATES: #{[data].inspect}"
@@ -110,17 +121,23 @@ module Artery
               synchronization_in_progress!(false)
             rescue Exception => e
               synchronization_in_progress!(false)
-              Artery.handle_error Error.new("Error in updates request handling: #{e.inspect}\n#{e.backtrace.join("\n")}")
+              Artery.handle_error Error.new("Error in updates request handling: #{e.inspect}",
+                                            original_exception: e,
+                                            request: {
+                                              route: updates_uri.to_route,
+                                              data: updates_data.to_json
+                                            },
+                                            response: data.to_json)
             end
           end
 
           on.error do |e|
             synchronization_in_progress!(false)
-            Artery.handle_error Error.new("Failed to get updates for #{uri.model} from #{uri.service}: #{e.message}")
+            Artery.handle_error Error.new("Failed to get updates for #{uri.model} from #{uri.service}: #{e.message}", e.artery_context)
           end
         end
       end
-      # rubocop:enable Metrics/AbcSize, Lint/RescueException
+      # rubocop:enable Metrics/AbcSize, Lint/RescueException, Metrics/MethodLength, Metrics/BlockLength
     end
   end
 end

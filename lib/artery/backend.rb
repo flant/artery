@@ -22,8 +22,9 @@ module Artery
             message = '{}' if message.blank?
 
             yield(JSON.parse(message).with_indifferent_access, reply, from)
-          rescue JSON::ParserError
-            Artery.handle_error FormatError.new(from, message)
+          rescue JSON::ParserError => e
+            Artery.handle_error FormatError.new(Routing.uri(from), message, original_exception: e,
+                                                                            subscription: { route: from, data: message })
           end
         end
       end
@@ -47,12 +48,15 @@ module Artery
               response = JSON.parse(message).with_indifferent_access
 
               if response.key?(:error)
-                handler.call :error, RequestError.new(uri, response)
+                handler.call :error, RequestError.new(uri, response, request: { route: uri.to_route, data: data.to_json },
+                                                                     response: message)
               else
                 handler.call :success, response
               end
-            rescue JSON::ParserError
-              Artery.handle_error FormatError.new(route, message)
+            rescue JSON::ParserError => e
+              Artery.handle_error FormatError.new(uri, message, original_exception: e,
+                                                                request: { route: uri.to_route, data: data.to_json },
+                                                                response: message)
             end
           end
         end

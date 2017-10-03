@@ -57,20 +57,33 @@ module Artery
                               model: from_uri.model,
                               plural: true,
                               action: :get
+        get_data = { uuid: data['uuid'] }
 
-        Artery.request get_uri.to_route, uuid: data['uuid'], service: Artery.service_name do |on|
+        Artery.request get_uri.to_route, get_data, service: Artery.service_name do |on|
           on.success do |attributes|
             begin
               handle.call(attributes)
 
               model_update!(data[:timestamp])
             rescue Exception => e
-              Artery.handle_error Error.new("Error in subscription handler: #{e.inspect}\n#{e.backtrace.join("\n")}")
+              error = Error.new("Error in subscription handler: #{e.inspect}",
+                original_exception: e,
+                subscription: {
+                  data: data.to_json,
+                  route: from,
+                },
+                request: { data: get_data.to_json, route: get_uri.to_route }, response: attributes.to_json)
+              Artery.handle_error error
             end
           end
 
           on.error do |e|
-            error = Error.new("Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{e.message}")
+            error = Error.new("Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{e.message}",
+              e.artery_context.merge(subscription: {
+                data: data.to_json,
+                route: from,
+              })
+            )
             Artery.handle_error error
           end
         end
