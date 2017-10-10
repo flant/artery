@@ -57,9 +57,9 @@ module Artery
                               model: from_uri.model,
                               plural: true,
                               action: :get
-        get_data = { uuid: data['uuid'] }
+        get_data = { uuid: data['uuid'], service: Artery.service_name }
 
-        Artery.request get_uri.to_route, get_data, service: Artery.service_name do |on|
+        Artery.request get_uri.to_route, get_data do |on|
           on.success do |attributes|
             begin
               handle.call(attributes)
