@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'nats/client'
 
 module Artery
@@ -22,41 +23,30 @@ module Artery
 
       def request(route, data, opts = {})
         opts[:max] = 1 unless opts.key?(:max) # Set max to 1 for auto-unsubscribe from INBOX-channels
+        sid = nil
 
         if EM.reactor_running?
           sid = ::NATS.request(route, data, opts) do |*resp|
-            yield(*resp)
-
-            requests.delete(sid)
-            stop if @inside_sync_request
+            correct_request_stop(sid) { yield(*resp) }
           end
 
           requests << sid
 
           ::NATS.timeout(sid, Artery.request_timeout) do
-            yield(TimeoutError.new(request: { route: route, data: data }))
-
-            requests.delete(sid)
-            stop if @inside_sync_request
+            correct_request_stop(sid) { yield(TimeoutError.new(request: { route: route, data: data })) }
           end
         else
           start do
             @inside_sync_request = true
 
             sid = ::NATS.request(route, data, opts) do |*resp|
-              yield(*resp)
-
-              requests.delete(sid)
-              stop
+              correct_request_stop(sid) { yield(*resp) }
             end
 
             requests << sid
 
             ::NATS.timeout(sid, Artery.request_timeout) do
-              yield(TimeoutError.new(request: { route: route, data: data }))
-
-              requests.delete(sid)
-              stop
+              correct_request_stop(sid) { yield(TimeoutError.new(request: { route: route, data: data })) }
             end
           end
         end
@@ -106,6 +96,14 @@ module Artery
         end
 
         options
+      end
+
+      def correct_request_stop(sid = nil)
+        yield
+      ensure
+        requests.delete(sid) if sid
+        stop if @inside_sync_request
+        @inside_sync_request = nil
       end
     end
   end
