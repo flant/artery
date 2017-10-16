@@ -20,10 +20,11 @@ module Artery
         ::NATS.unsubscribe(*args, &blk)
       end
 
-      # rubocop:disable Metrics/AbcSize
-      def request(*args)
+      def request(route, data, opts = {})
+        opts[:max] = 1 unless opts.key?(:max) # Set max to 1 for auto-unsubscribe from INBOX-channels
+
         if EM.reactor_running?
-          sid = ::NATS.request(*args) do |*resp|
+          sid = ::NATS.request(route, data, opts) do |*resp|
             yield(*resp)
 
             requests.delete(sid)
@@ -33,7 +34,7 @@ module Artery
           requests << sid
 
           ::NATS.timeout(sid, Artery.request_timeout) do
-            yield(TimeoutError.new(request: { route: args[0], data: args[1] }))
+            yield(TimeoutError.new(request: { route: route, data: data }))
 
             requests.delete(sid)
             stop if @inside_sync_request
@@ -42,7 +43,7 @@ module Artery
           start do
             @inside_sync_request = true
 
-            sid = ::NATS.request(*args) do |*resp|
+            sid = ::NATS.request(route, data, opts) do |*resp|
               yield(*resp)
 
               requests.delete(sid)
@@ -52,7 +53,7 @@ module Artery
             requests << sid
 
             ::NATS.timeout(sid, Artery.request_timeout) do
-              yield(TimeoutError.new(request: { route: args[0], data: args[1] }))
+              yield(TimeoutError.new(request: { route: route, data: data }))
 
               requests.delete(sid)
               stop
