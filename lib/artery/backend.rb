@@ -29,6 +29,7 @@ module Artery
         end
       end
 
+      # rubocop:disable Metrics/AbcSize
       def request(route, data = nil, _options = {})
         raise ArgumentError, 'You must provide block to handle response' unless block_given?
         handler = Multiblock.wrapper
@@ -37,12 +38,14 @@ module Artery
         yield(handler)
 
         data ||= {}
+        Artery.logger.debug "REQUESTED: [#{uri.to_route}] #{data.to_json}"
 
         backend.request(uri.to_route, data.to_json) do |message|
           if message.is_a?(Error) # timeout case
+            Artery.logger.debug "REQUEST ERROR: [#{uri.to_route}] #{message.message}"
             handler.call :error, message
           else
-            Artery.logger.debug "RESPONSE RECEIVED: #{message}"
+            Artery.logger.debug "REQUEST RESPONSE: [#{uri.to_route}] #{message}"
             begin
               message ||= '{}'
               response = JSON.parse(message).with_indifferent_access
@@ -61,10 +64,11 @@ module Artery
           end
         end
       end
+      # rubocop:enable Metrics/AbcSize
 
       def publish(route, data)
         backend.publish(route, data.to_json) do
-          Artery.logger.debug "PUBLISHED: #{data.to_json}"
+          Artery.logger.debug "PUBLISHED: [#{route}] #{data.to_json}"
         end
       end
     end
