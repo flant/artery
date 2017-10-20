@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 module Artery
   class Worker
     class Error < Artery::Error; end
@@ -12,7 +13,7 @@ module Artery
       end
     end
 
-    # rubocop:disable Metrics/AbcSize, Lint/RescueException
+    # rubocop:disable Metrics/AbcSize, Lint/RescueException, Metrics/BlockLength
     def run
       if Artery.subscriptions.blank?
         Artery.logger.warn 'No subscriptions defined, exiting...'
@@ -30,18 +31,21 @@ module Artery
 
           @sync.execute
 
-          Artery.subscriptions.each do |subscription|
-            Artery.logger.debug "Subscribing on '#{subscription.uri}'"
-            Artery.subscribe subscription.uri.to_route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
-              begin
-                subscription.handle(data, reply, from)
-              rescue Exception => e
-                Artery.handle_error Error.new("Error in subscription handling: #{e.inspect}",
-                                              original_exception: e,
-                                              subscription: {
-                                                route: from,
-                                                data: data.to_json
-                                              })
+          Artery.subscriptions.each do |uri, subscriptions|
+            Artery.logger.debug "Subscribing on '#{uri}'"
+            Artery.subscribe uri.to_route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
+              subscriptions.each do |subscription|
+                begin
+                  subscription.handle(data, reply, from)
+                rescue Exception => e
+                  Artery.handle_error Error.new("Error in subscription handling: #{e.inspect}",
+                                                original_exception: e,
+                                                subscription: {
+                                                  subscriber: subscription.subscriber.to_s,
+                                                  route: from,
+                                                  data: data.to_json
+                                                })
+                end
               end
             end
           end
@@ -57,6 +61,6 @@ module Artery
     ensure
       Artery.clear_synchronizing_subscriptions!
     end
-    # rubocop:enable Metrics/AbcSize, Lint/RescueException
+    # rubocop:enable Metrics/AbcSize, Lint/RescueException, Metrics/BlockLength
   end
 end

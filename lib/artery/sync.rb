@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 module Artery
   class Sync
     class Error < Artery::Error; end
@@ -11,7 +12,7 @@ module Artery
         return
       end
 
-      Artery.subscriptions.each(&:synchronize!)
+      Artery.subscriptions.values.flatten.uniq.each(&:synchronize!)
     end
   end
 end

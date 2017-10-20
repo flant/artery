@@ -1,10 +1,11 @@
 # frozen_string_literal: true
+
 module Artery
   class Subscription
     autoload :Synchronization, 'artery/subscription/synchronization'
     include Synchronization
 
-    attr_accessor :uri, :model, :handler, :options
+    attr_accessor :uri, :subscriber, :handler, :options
 
     DEFAULTS = {
       synchronize:         false,
@@ -12,10 +13,10 @@ module Artery
     }.freeze
 
     def initialize(model, uri, handler:, **options)
-      @uri     = uri
-      @model   = model
-      @handler = handler
-      @options = DEFAULTS.merge(options)
+      @uri        = uri
+      @subscriber = model
+      @handler    = handler
+      @options    = DEFAULTS.merge(options)
 
       Artery.add_subscription self
     end
@@ -69,6 +70,7 @@ module Artery
               error = Error.new("Error in subscription handler: #{e.inspect}",
                 original_exception: e,
                 subscription: {
+                  subscriber: subscriber.to_s,
                   data: data.to_json,
                   route: from,
                 },
@@ -80,6 +82,7 @@ module Artery
           on.error do |e|
             error = Error.new("Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{e.message}",
               e.artery_context.merge(subscription: {
+                subscriber: subscriber.to_s,
                 data: data.to_json,
                 route: from,
               })

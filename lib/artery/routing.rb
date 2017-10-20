@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 module Artery
   module Routing
     class URI
@@ -36,6 +37,19 @@ module Artery
 
       def route_model
         (plural? ? model.to_s.pluralize : model)
+      end
+
+      # Make them identical for Hash if route is identical
+      def ==(other)
+        to_s == other.to_s
+      end
+
+      def eql?(other)
+        self == other
+      end
+
+      def hash
+        to_s.hash
       end
     end
 

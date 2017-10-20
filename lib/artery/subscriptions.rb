@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 module Artery
   autoload :Subscription, 'artery/subscription'
 
@@ -12,8 +13,9 @@ module Artery
 
     module ClassMethods
       def add_subscription(subscription)
-        @subscriptions ||= []
-        @subscriptions << subscription
+        @subscriptions ||= {}
+        @subscriptions[subscription.uri] ||= []
+        @subscriptions[subscription.uri] << subscription
       end
 
       def synchronizing_subscriptions
@@ -22,7 +24,7 @@ module Artery
 
       def clear_synchronizing_subscriptions!
         Artery.synchronizing_subscriptions.dup.each do |s|
-          Artery.logger.warn "#{s.uri} is still synchronizing, clearing.."
+          Artery.logger.warn "<#{s.subscriber}> [#{s.uri}] is still synchronizing, clearing.."
 
           s.synchronization_in_progress!(false)
         end

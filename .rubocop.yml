@@ -33,5 +33,5 @@ Metrics/PerceivedComplexity:
 Style/Documentation:
   Enabled: false
 
-Style/PredicateName:
+Naming/PredicateName:
   Enabled: false
