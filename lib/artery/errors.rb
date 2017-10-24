@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 module Artery
   class Error < StandardError
     attr_accessor :artery_context
@@ -48,7 +49,7 @@ module Artery
   # ErrorHandler
   class ErrorHandler
     def self.handle(exception)
-      Artery.logger.error exception.message
+      Artery.logger.error exception.message + "\n" + exception.backtrace.join("\n")
     end
   end
 

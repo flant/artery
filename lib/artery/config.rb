@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 module Artery
   module Config
     extend ActiveSupport::Concern
@@ -31,7 +32,7 @@ module Artery
         end
 
         def request_timeout
-          @request_timeout || ENV.fetch('ARTERY_REQUEST_TIMEOUT') { '30' }.to_i
+          @request_timeout || ENV.fetch('ARTERY_REQUEST_TIMEOUT') { '15' }.to_i
         end
 
         def error_handler

@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require 'artery/engine' if defined?(Rails)
 
 require 'artery/errors'
@@ -25,8 +26,9 @@ module Artery
   end
 
   class << self
+    attr_accessor :worker
     def handle_signals
-      %w(TERM INT).each do |sig|
+      %w[TERM INT].each do |sig|
         trap(sig) do
           puts "Caught #{sig} signal, exiting..."
 

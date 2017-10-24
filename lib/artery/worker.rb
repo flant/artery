@@ -24,6 +24,7 @@ module Artery
 
       @sync = Artery::Sync.new
 
+      Artery.worker = self
       Artery.start do
         tries = 0
         begin

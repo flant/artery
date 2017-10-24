@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 module Artery
   module Backend
     extend ActiveSupport::Concern
@@ -67,9 +68,8 @@ module Artery
       # rubocop:enable Metrics/AbcSize
 
       def publish(route, data)
-        backend.publish(route, data.to_json) do
-          Artery.logger.debug "PUBLISHED: [#{route}] #{data.to_json}"
-        end
+        Artery.logger.debug "PUBLISHED: [#{route}] #{data.to_json}"
+        backend.publish(route, data.to_json)
       end
     end
   end
