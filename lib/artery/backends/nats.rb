@@ -77,6 +77,7 @@ module Artery
 
             do_publish.call(&blk)
           end
+          @inside_sync_request = nil
         end
       end
 
