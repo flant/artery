@@ -37,13 +37,11 @@ module Artery
           end
         end
 
-        if Artery.worker
-          do_request.call(&blk)
-        elsif EM.reactor_running? && (EM.reactor_thread != Thread.current)
-          wait_em_to_stop
-        elsif EM.reactor_running?
+        if Artery.worker || (EM.reactor_running? && (EM.reactor_thread == Thread.current))
           do_request.call(&blk)
         else
+          wait_em_to_stop if EM.reactor_running?
+
           start do
             @inside_sync_request = true
 
@@ -65,13 +63,11 @@ module Artery
           end
         end
 
-        if EM.reactor_running?
-          do_publish.call(&blk)
-        elsif EM.reactor_running? && (EM.reactor_thread != Thread.current)
-          wait_em_to_stop
-        elsif EM.reactor_running?
+        if Artery.worker || (EM.reactor_running? && (EM.reactor_thread == Thread.current))
           do_publish.call(&blk)
         else
+          wait_em_to_stop if EM.reactor_running?
+
           start do
             @inside_sync_request = true
 
