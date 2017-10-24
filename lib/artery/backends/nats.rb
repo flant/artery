@@ -73,6 +73,8 @@ module Artery
           do_publish.call(&blk)
         else
           start do
+            @inside_sync_request = true
+
             do_publish.call(&blk)
           end
         end
