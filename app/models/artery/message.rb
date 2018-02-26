@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 if defined?(ActiveRecord)
   module Artery
     class Message < ActiveRecord::Base

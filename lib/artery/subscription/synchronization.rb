@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 module Artery
   class Subscription
     module Synchronization
@@ -83,7 +84,6 @@ module Artery
                 synchronization_in_progress!(false)
                 model_update!(data[:timestamp])
               end
-
             rescue Exception => e
               synchronization_in_progress!(false)
               Artery.handle_error Error.new("Error in all objects request handling: #{e.inspect}",

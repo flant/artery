@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 $LOAD_PATH.push File.expand_path('../lib', __FILE__)
 
 # Maintain your gem's version:
@@ -18,7 +20,7 @@ Gem::Specification.new do |s|
   s.bindir      = 'exe'
   s.executables = s.files.grep(%r{^exe/}) { |f| File.basename(f) }
 
+  s.add_dependency 'multiblock',   '~> 0.2'
   s.add_dependency 'nats',         '~> 0.8'
   s.add_dependency 'rails',        '>= 4.2', '< 6.0'
-  s.add_dependency 'multiblock',   '~> 0.2'
 end

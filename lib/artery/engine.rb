@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 module Artery
   class Engine < ::Rails::Engine
     isolate_namespace Artery

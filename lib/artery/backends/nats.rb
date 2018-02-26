@@ -108,6 +108,7 @@ module Artery
 
         options
       end
+      # rubocop:enable Metrics/AbcSize
 
       def correct_request_stop(sid = nil)
         yield
