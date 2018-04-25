@@ -10,7 +10,7 @@ module Artery
         after_update  :artery_on_update
         after_destroy :artery_on_destroy
 
-        if try(:is_archival?)
+        if respond_to?(:archival?) && archival?
           after_archive   :artery_on_archive
           after_unarchive :artery_on_unarchive
         end
