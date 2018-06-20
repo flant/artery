@@ -43,9 +43,10 @@ module Artery
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get) do |data, reply, sub|
             Artery.logger.info "HEY-HEY-HEY, message on GET with arguments: `#{[data, reply, sub].inspect}`!"
             obj = artery_find data['uuid']
-            service = data['service']
 
-            data = obj.blank? ? { error: 'not_found' } : obj.to_artery(service)
+            representation = data['representation'] || data['service'] # DEPRECATED: old-style param
+
+            data = obj.blank? ? { error: 'not_found' } : obj.to_artery(representation)
 
             Artery.publish(reply, data)
           end
@@ -53,15 +54,16 @@ module Artery
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_all) do |data, reply, sub|
             Artery.logger.info "HEY-HEY-HEY, message on GET_ALL with arguments: `#{[data, reply, sub].inspect}`!"
 
-            service  = data['service']
             scope    = "artery_#{data['scope'] || 'all'}"
             per_page = data['per_page']
             page     = data['page'] || 0
 
+            representation = data['representation'] || data['service'] # DEPRECATED: old-style param
+
             data = if respond_to?(scope)
                      relation = send(scope)
                      relation = relation.offset(page * per_page).limit(per_page) if per_page
-                     objects = relation.map { |obj| obj.to_artery(service) }
+                     objects = relation.map { |obj| obj.to_artery(representation) }
                      { objects: objects, timestamp: Time.zone.now.to_f }
                    else
                      Artery.logger.error "No artery scope '#{data['scope']}' defined!"
@@ -82,7 +84,7 @@ module Artery
             Artery.publish(reply, updates: messages.map { |obj| obj.to_artery.merge('action' => obj.action) })
           end
         end
-        # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
+        # rubocop:enable Metrics/AbcSize
       end
 
       def artery_updated_by!(service)

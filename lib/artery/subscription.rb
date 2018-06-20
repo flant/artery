@@ -9,7 +9,8 @@ module Artery
 
     DEFAULTS = {
       synchronize:         false,
-      synchronize_updates: true
+      synchronize_updates: true,
+      representation:      Artery.service_name
     }.freeze
 
     def initialize(model, uri, handler:, **options)
@@ -23,6 +24,10 @@ module Artery
 
     def info
       @info ||= Artery.subscription_info_class.find_for_subscription(self)
+    end
+
+    def representation_name
+      options[:representation]
     end
 
     def last_model_updated_at
@@ -58,7 +63,7 @@ module Artery
                               model: from_uri.model,
                               plural: true,
                               action: :get
-        get_data = { uuid: data['uuid'], service: Artery.service_name }
+        get_data = { uuid: data['uuid'], representation: representation_name, service: representation_name } # DEPRECATED: old-style param
 
         Artery.request get_uri.to_route, get_data do |on|
           on.success do |attributes|

@@ -83,9 +83,9 @@ module Artery
         send(self.class.artery_uuid_attribute)
       end
 
-      def to_artery(service_name = nil)
-        if service_name && artery[:representations].key?(service_name.to_sym)
-          instance_eval(&artery[:representations][service_name.to_sym])
+      def to_artery(representation_name = nil)
+        if representation_name && artery[:representations].key?(representation_name.to_sym)
+          instance_eval(&artery[:representations][representation_name.to_sym])
         else
           instance_eval(&artery[:representations][:_default])
         end

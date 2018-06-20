@@ -61,7 +61,8 @@ module Artery
         objects = nil
 
         all_data = {
-          service: Artery.service_name,
+          service: representation_name, # DEPRECATED: old-style param
+          representation: representation_name,
           scope: synchronization_scope,
           page: page,
           per_page: synchronization_per_page
