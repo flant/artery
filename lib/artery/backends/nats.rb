@@ -43,14 +43,13 @@ module Artery
           wait_em_to_stop if EM.reactor_running?
 
           start do
-            @inside_sync_request = true
+            Thread.current[:inside_sync_request] = true
 
             do_request.call(&blk)
           end
-          @inside_sync_request = nil
+          Thread.current[:inside_sync_request] = nil
         end
       end
-      # rubocop:enable Metrics/AbcSize
 
       def publish(*args, &blk)
         do_publish = proc do
@@ -69,11 +68,11 @@ module Artery
           wait_em_to_stop if EM.reactor_running?
 
           start do
-            @inside_sync_request = true
+            Thread.current[:inside_sync_request] = true
 
             do_publish.call(&blk)
           end
-          @inside_sync_request = nil
+          Thread.current[:inside_sync_request] = nil
         end
       end
 
@@ -114,14 +113,13 @@ module Artery
         yield
       ensure
         requests.delete(sid) if sid
-        stop if @inside_sync_request
+        stop if Thread.current[:inside_sync_request]
       end
 
       def wait_em_to_stop
-        Artery.logger.debug 'WAITING_EM_TO_STOP: it was running in another thread'
+        Artery.logger.debug 'WAITING_EM_TO_STOP: it is running in another thread'
 
-        stop if ::NATS.client && !::NATS.client.closing? # WTF???
-        sleep(0.1) while EM.reactor_running?
+        sleep(0.01) while EM.reactor_running?
       end
     end
   end
