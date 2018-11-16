@@ -21,9 +21,15 @@ module Artery
   include Subscriptions
 
   module Backends
-    autoload :Base, 'artery/backends/base'
-    autoload :NATS, 'artery/backends/nats'
+    autoload :Base,     'artery/backends/base'
+    autoload :NATS,     'artery/backends/nats'
+    autoload :NATSPure, 'artery/backends/nats_pure'
   end
+
+  register_backend :nats,      :NATS
+  register_backend :nats_pure, :NATSPure
+
+  use_backend :nats # default
 
   class << self
     attr_accessor :worker
