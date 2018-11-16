@@ -6,10 +6,26 @@ module Artery
 
     included do
       class << self
-        attr_accessor :backend
+        attr_reader :backend_in_use, :backends
+
+        def register_backend(type, class_name)
+          @backends ||= {}
+          @backends[type.to_sym] = Artery::Backends.const_get class_name
+        rescue LoadError, NameError
+          false
+        end
+
+        def use_backend(type)
+          raise ArgumentError, "Artery has no registered backend '#{type}'" unless backends[type.to_sym]
+
+          @backend_in_use = type
+
+          @backend&.stop
+          @backend = nil
+        end
 
         def backend
-          @backend ||= Backends::NATS.new backend_config
+          @backend ||= backends[backend_in_use].new backend_config
         end
 
         delegate :start, :stop, :connect, :unsubscribe, to: :backend
@@ -68,8 +84,8 @@ module Artery
       # rubocop:enable Metrics/AbcSize
 
       def publish(route, data)
-        Artery.logger.debug "PUBLISHED: [#{route}] #{data.to_json}"
         backend.publish(route, data.to_json)
+        Artery.logger.debug "PUBLISHED: [#{route}] #{data.to_json}"
       end
     end
   end

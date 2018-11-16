@@ -6,6 +6,8 @@ require ENV['APP_PATH'] || File.join(File.expand_path('.'), 'config', 'applicati
 Rails.application.initialize!
 Rails.application.eager_load!
 
+Artery.use_backend :nats # redefine because only default works in worker
+
 begin
   Artery::Sync.new.execute
 ensure
