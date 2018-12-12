@@ -3,6 +3,8 @@
 module Artery
   class Subscription
     autoload :Synchronization, 'artery/subscription/synchronization'
+    autoload :IncomingMessage, 'artery/subscription/incoming_message'
+
     include Synchronization
 
     attr_accessor :uri, :subscriber, :handler, :options
@@ -34,75 +36,83 @@ module Artery
       info.last_message_at
     end
 
-    def model_update!(timestamp)
-      info.update! last_message_at: Time.zone.at(timestamp.to_f) if timestamp.to_f > last_model_updated_at.to_f
+    def latest_message_index
+      info.latest_index.to_i
     end
 
-    # rubocop:disable all
-    def handle(data, reply, from)
-      Artery.logger.debug "GOT MESSAGE: #{[data, reply, from].inspect}"
+    def new?
+      !last_model_updated_at && !latest_message_index.positive?
+    end
 
-      from_uri = Routing.uri(from)
+    def update_info_by_message!(message)
+      return unless message.has_index?
 
-      handle = proc do |d, r, f|
-        if data[:updated_by_service].to_s == Artery.service_name.to_s
-          Artery.logger.debug 'SKIPPING UPDATES MADE BY US'
-          next
+      # DEPRECATED: old-style (pre 0.7)
+      info.update! last_message_at: Time.zone.at(message.timestamp) if message.timestamp > last_model_updated_at.to_f
+
+      # new-style (since 0.7)
+      info.update! latest_index: message.index if message.index.positive? && (message.index > latest_message_index)
+    end
+
+    def handle(message, from_updates: false)
+      Artery.logger.debug "GOT MESSAGE: #{message.inspect}"
+
+      info.lock_for_message(message) do
+        if !from_updates && synchronization_in_progress?
+          Artery.logger.debug 'SKIPPING MESSAGE RECEIVED WHILE SYNC IN PROGRESS'
+          return
         end
+        return if !from_updates && !validate_index(message)
 
-        handler.call(:_before_action, from_uri.action, d, r, f)
-
-        handler.call(from_uri.action, d, r, f) || handler.call(:_default, d, r, f)
-
-        handler.call(:_after_action, from_uri.action, d, r, f)
+        case message.action
+        when :create, :update
+          message.enrich_data do |attributes|
+            handle_data(message, attributes)
+          end
+        else
+          handle_data(message)
+        end
       end
+    end
 
-      case from_uri.action
-      when :create, :update
-        get_uri = Routing.uri service: from_uri.service,
-                              model: from_uri.model,
-                              plural: true,
-                              action: :get
-        get_data = { uuid: data['uuid'], representation: representation_name, service: representation_name } # DEPRECATED: old-style param
+    protected
 
-        Artery.request get_uri.to_route, get_data do |on|
-          on.success do |attributes|
-            begin
-              handle.call(attributes)
+    def validate_index(message)
+      return true unless message.previous_index.positive?
 
-              model_update!(data[:timestamp])
-            rescue Exception => e
-              error = Error.new("Error in subscription handler: #{e.inspect}",
-                original_exception: e,
-                subscription: {
-                  subscriber: subscriber.to_s,
-                  data: data.to_json,
-                  route: from,
-                },
-                request: { data: get_data.to_json, route: get_uri.to_route }, response: attributes.to_json)
-              Artery.handle_error error
-            end
-          end
+      if message.previous_index > latest_message_index
+        Artery.logger.debug 'WE\'VE GOT FUTURE MESSAGE, REQUESTING ALL MISSED'
 
-          on.error do |e|
-            error = Error.new("Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{e.message}",
-              e.artery_context.merge(subscription: {
-                subscriber: subscriber.to_s,
-                data: data.to_json,
-                route: from,
-              })
-            )
-            Artery.handle_error error
-          end
-        end
-      when :delete
-        handle.call(data, reply, from)
+        receive_updates # this will include current message
+        false
+      elsif message.previous_index < latest_message_index
+        Artery.logger.debug 'WE\'VE GOT PREVIOUS MESSAGE AND ALREADY HANDLED IT, SKIPPING'
 
-        model_update!(data[:timestamp])
+        false
       else
-        handle.call(data, reply, from)
+        true
       end
     end
-    # rubocop:enable all
+
+    def handle_data(message, data = nil)
+      data ||= message.data
+
+      info.lock_for_message(message) do
+        if message.data[:updated_by_service].to_s == Artery.service_name.to_s
+          Artery.logger.debug 'SKIPPING UPDATES MADE BY US'
+          update_info_by_message!(message)
+          return
+        end
+
+        handler.call(:_before_action, message.action, data, message.reply, message.from)
+
+        handler.call(message.action,  data, message.reply, message.from) ||
+          handler.call(:_default, data, message.reply, message.from)
+
+        handler.call(:_after_action, message.action, data, message.reply, message.from)
+
+        update_info_by_message!(message)
+      end
+    end
   end
 end

@@ -34,14 +34,14 @@ module Artery
 
     module ClassMethods
       def subscribe(route, options = {})
-        backend.subscribe(route, options) do |message, reply, from|
+        backend.subscribe(route, options) do |json, reply, from|
           begin
-            message = '{}' if message.blank?
+            json = '{}' if json.blank?
 
-            yield(JSON.parse(message).with_indifferent_access, reply, from)
+            yield(JSON.parse(json).with_indifferent_access, reply, from)
           rescue JSON::ParserError => e
-            Artery.handle_error FormatError.new(Routing.uri(from), message, original_exception: e,
-                                                                            subscription: { route: from, data: message })
+            Artery.handle_error FormatError.new(Routing.uri(from), json, original_exception: e,
+                                                                         subscription: { route: from, data: json })
           end
         end
       end
@@ -55,14 +55,14 @@ module Artery
         yield(handler)
 
         data ||= {}
-        Artery.logger.debug "REQUESTED: [#{uri.to_route}] #{data.to_json}"
+        Artery.logger.debug "REQUESTED: <#{uri.to_route}> #{data.to_json}"
 
         backend.request(uri.to_route, data.to_json) do |message|
           if message.is_a?(Error) # timeout case
-            Artery.logger.debug "REQUEST ERROR: [#{uri.to_route}] #{message.message}"
+            Artery.logger.debug "REQUEST ERROR: <#{uri.to_route}> #{message.message}"
             handler.call :error, message
           else
-            Artery.logger.debug "REQUEST RESPONSE: [#{uri.to_route}] #{message}"
+            Artery.logger.debug "REQUEST RESPONSE: <#{uri.to_route}> #{message}"
             begin
               message ||= '{}'
               response = JSON.parse(message).with_indifferent_access
@@ -85,7 +85,7 @@ module Artery
 
       def publish(route, data)
         backend.publish(route, data.to_json)
-        Artery.logger.debug "PUBLISHED: [#{route}] #{data.to_json}"
+        Artery.logger.debug "PUBLISHED: <#{route}> #{data.to_json}"
       end
     end
   end

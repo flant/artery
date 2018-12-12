@@ -36,17 +36,17 @@ module Artery
             Artery.logger.debug "Subscribing on '#{uri}'"
             Artery.subscribe uri.to_route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
               subscriptions.each do |subscription|
-                begin
-                  subscription.handle(data, reply, from)
-                rescue Exception => e
-                  Artery.handle_error Error.new("Error in subscription handling: #{e.inspect}",
-                                                original_exception: e,
-                                                subscription: {
-                                                  subscriber: subscription.subscriber.to_s,
-                                                  route: from,
-                                                  data: data.to_json
-                                                })
-                end
+                message = Subscription::IncomingMessage.new subscription, data, reply, from
+
+                subscription.handle(message)
+              rescue Exception => e
+                Artery.handle_error Error.new("Error in subscription handling: #{e.inspect}",
+                                              original_exception: e,
+                                              subscription: {
+                                                subscriber: subscription.subscriber.to_s,
+                                                route: from,
+                                                data: data.to_json
+                                              })
               end
             end
           end

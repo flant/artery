@@ -43,10 +43,10 @@ module Artery
         # TODO: implement this carefully
         return if uri.service == Artery.service_name || synchronization_in_progress?
 
-        if last_model_updated_at && synchronize_updates?
+        if !new? && synchronize_updates?
           synchronization_in_progress!
           receive_updates
-        elsif !last_model_updated_at && synchronize?
+        elsif new? && synchronize?
           synchronization_in_progress!
           receive_all
         end
@@ -70,8 +70,8 @@ module Artery
 
         Artery.request all_uri.to_route, all_data do |on|
           on.success do |data|
-            begin
-              Artery.logger.debug "HEY-HEY, ALL OBJECTS: #{[data].inspect}"
+            info.with_lock do
+              Artery.logger.debug "HEY-HEY, ALL OBJECTS: <#{all_uri.to_route}> #{[data].inspect}"
 
               objects = data[:objects].map(&:with_indifferent_access)
 
@@ -83,7 +83,7 @@ module Artery
               else
                 synchronization_page_update!(nil) if synchronization_per_page
                 synchronization_in_progress!(false)
-                model_update!(data[:timestamp])
+                update_info_by_message!(IncomingMessage.new(self, data, nil, all_uri.to_route))
               end
             rescue Exception => e
               synchronization_in_progress!(false)
@@ -108,16 +108,16 @@ module Artery
 
       def receive_updates
         updates_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
-        updates_data = { since: last_model_updated_at.to_f }
+        updates_data = { since: last_model_updated_at.to_f, after_index: latest_message_index }
 
         Artery.request updates_uri.to_route, updates_data do |on|
           on.success do |data|
-            begin
-              Artery.logger.debug "HEY-HEY, LAST_UPDATES: #{[data].inspect}"
+            info.with_lock do
+              Artery.logger.debug "HEY-HEY, LAST_UPDATES: <#{updates_uri.to_route}> #{[data].inspect}"
 
               data['updates'].each do |update|
                 from = Routing.uri(service: uri.service, model: uri.model, action: update.delete('action')).to_route
-                handle(update, nil, from)
+                handle(IncomingMessage.new(self, update, nil, from), from_updates: true)
               end
               synchronization_in_progress!(false)
             rescue Exception => e

@@ -1,8 +1,12 @@
 # frozen_string_literal: true
 
-if defined?(ActiveRecord)
-  module Artery
-    class SubscriptionInfo < ActiveRecord::Base
+return unless defined?(::ActiveRecord)
+
+module Artery
+  module ActiveRecord
+    class SubscriptionInfo < ::ActiveRecord::Base
+      self.table_name = 'artery_subscription_infos'
+
       class << self
         def find_for_subscription(subscription)
           info = find_or_initialize_by(subscriber: subscription.subscriber.to_s,
@@ -17,6 +21,32 @@ if defined?(ActiveRecord)
           end
 
           info
+        end
+      end
+
+      def with_lock
+        self.class.transaction do
+          if (was_locked = @locked) # prevent double lock to reduce selects
+            Artery.logger.debug "WAITING FOR LOCK..."
+
+            lock!
+
+            Artery.logger.debug "GOT LOCK!"
+
+            @locked = true
+          end
+
+          yield
+        ensure
+          @locked = false unless was_locked
+        end
+      end
+
+      def lock_for_message(message, &blk)
+        if message.has_index? # only 'indexed' messages should lock
+          with_lock(&blk)
+        else
+          yield
         end
       end
     end

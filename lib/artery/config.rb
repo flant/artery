@@ -12,11 +12,11 @@ module Artery
 
         # Ability to redefine message class (for example, for non-activerecord applications)
         def message_class
-          @message_class || Artery::Message
+          @message_class || get_model_class(:Message)
         end
 
         def subscription_info_class
-          @subscription_info_class || Artery::SubscriptionInfo
+          @subscription_info_class || get_model_class(:SubscriptionInfo)
         end
 
         def service_name
@@ -47,6 +47,18 @@ module Artery
             reconnect_timeout:  ENV.fetch('ARTERY_RECONNECT_TIMEOUT')  { '1' }.to_i,
             reconnect_attempts: ENV.fetch('ARTERY_RECONNECT_ATTEMPTS') { '10' }.to_i
           }
+        end
+
+        private
+
+        def get_model_class(model)
+          if defined?(::ActiveRecord)
+            Artery::ActiveRecord.const_get(model)
+          elsif defined?(::NoBrainer)
+            Artery::NoBrainer.const_get(model)
+          else
+            raise ArgumentError, 'No supported ORMs found'
+          end
         end
       end
     end
