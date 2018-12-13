@@ -98,7 +98,8 @@ module Artery
 
             Artery.logger.info "MESSAGES: #{messages.inspect}"
 
-            Artery.publish(reply, updates: messages.map { |obj| obj.to_artery.merge('action' => obj.action) })
+            Artery.publish(reply, updates: messages.map { |obj| obj.to_artery.merge('action' => obj.action) },
+                                  _index: Artery.message_class.latest_index(artery_model_name))
           end
         end
         # rubocop:enable Metrics/AbcSize

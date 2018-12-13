@@ -3,13 +3,14 @@
 module Artery
   class Subscription
     class IncomingMessage
-      attr_accessor :data, :reply, :from, :from_uri, :subscription
-      def initialize(subscription, data, reply, from)
+      attr_accessor :data, :reply, :from, :from_uri, :subscription, :options
+      def initialize(subscription, data, reply, from, **options)
         @subscription = subscription
         @data         = data
         @reply        = reply
         @from         = from
         @from_uri     = Routing.uri(@from)
+        @options      = options
       end
 
       def action
@@ -32,6 +33,10 @@ module Artery
       def has_index?
         timestamp.positive? || # DEPRECATED: old-style (pre 0.7)
         index.positive?
+      end
+
+      def from_updates?
+        options[:from_updates]
       end
 
       def enrich_data

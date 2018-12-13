@@ -54,15 +54,15 @@ module Artery
       info.update! latest_index: message.index if message.index.positive? && (message.index > latest_message_index)
     end
 
-    def handle(message, from_updates: false)
+    def handle(message)
       Artery.logger.debug "GOT MESSAGE: #{message.inspect}"
 
       info.lock_for_message(message) do
-        if !from_updates && synchronization_in_progress?
+        if !message.from_updates? && synchronization_in_progress?
           Artery.logger.debug 'SKIPPING MESSAGE RECEIVED WHILE SYNC IN PROGRESS'
           return
         end
-        return if !from_updates && !validate_index(message)
+        return if !message.from_updates? && !validate_index(message)
 
         case message.action
         when :create, :update
@@ -78,7 +78,7 @@ module Artery
     protected
 
     def validate_index(message)
-      return true unless message.previous_index.positive?
+      return true unless message.previous_index.positive? && latest_message_index.positive?
 
       if message.previous_index > latest_message_index
         Artery.logger.debug 'WE\'VE GOT FUTURE MESSAGE, REQUESTING ALL MISSED'
@@ -111,7 +111,7 @@ module Artery
 
         handler.call(:_after_action, message.action, data, message.reply, message.from)
 
-        update_info_by_message!(message)
+        update_info_by_message!(message) unless message.from_updates?
       end
     end
   end

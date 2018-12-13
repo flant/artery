@@ -58,7 +58,7 @@ module Artery
       end
 
       def to_artery
-        data.merge('timestamp' => created_at_f, '_index' => index, '_previous_index' => previous_index)
+        data.merge('timestamp' => created_at_f, '_index' => index)
       end
 
       protected
@@ -70,7 +70,7 @@ module Artery
       end
 
       def send_to_artery
-        Artery.publish route, to_artery
+        Artery.publish route, to_artery.merge('_previous_index' => previous_index)
       end
     end
   end

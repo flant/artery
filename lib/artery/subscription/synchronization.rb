@@ -112,13 +112,15 @@ module Artery
 
         Artery.request updates_uri.to_route, updates_data do |on|
           on.success do |data|
+            updates_message = IncomingMessage.new(self, data, nil, updates_uri.to_route)
             info.with_lock do
               Artery.logger.debug "HEY-HEY, LAST_UPDATES: <#{updates_uri.to_route}> #{[data].inspect}"
 
-              data['updates'].each do |update|
+              data['updates'].sort_by { |u| (u['_index'] || u['timestamp']).to_f }.each do |update|
                 from = Routing.uri(service: uri.service, model: uri.model, action: update.delete('action')).to_route
-                handle(IncomingMessage.new(self, update, nil, from), from_updates: true)
+                handle(IncomingMessage.new(self, update, nil, from, from_updates: true))
               end
+              update_info_by_message! updates_message
               synchronization_in_progress!(false)
             rescue Exception => e
               synchronization_in_progress!(false)

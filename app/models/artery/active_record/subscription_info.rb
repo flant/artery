@@ -26,7 +26,7 @@ module Artery
 
       def with_lock
         self.class.transaction do
-          if (was_locked = @locked) # prevent double lock to reduce selects
+          if !(was_locked = @locked) # prevent double lock to reduce selects
             Artery.logger.debug "WAITING FOR LOCK..."
 
             lock!

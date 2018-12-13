@@ -7,20 +7,17 @@ module Artery
     class NATSPure < Base
       attr_accessor :client
 
-      def initialize(*args)
-        super
-        connect
-      end
-
       def client
-        @client ||= ::NATS::IO::Client.new
+        @client ||= connect
       end
 
       delegate :connected?, :connecting?, to: :client
 
       def connect
-        client.connect(options)
-        Artery.logger.debug "Connected to #{client.connected_server}"
+        c = ::NATS::IO::Client.new
+        c.connect(options)
+        Artery.logger.debug "Connected to #{c.connected_server}"
+        c
       end
 
       def stop
@@ -30,8 +27,9 @@ module Artery
       # subscribe, unsubscribe, start not implemented, should use this backend ONLY for synchronous requests
 
       def request(route, data, opts = {}, &blk)
+        opts[:timeout] ||= Artery.request_timeout
         # Always synchronous for now
-        response = client.request route, data, timeout: Artery.request_timeout
+        response = client.request route, data, opts
         yield response.data
       rescue ::NATS::IO::Timeout
         yield(TimeoutError.new(request: { route: route, data: data }))

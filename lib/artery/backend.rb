@@ -47,7 +47,7 @@ module Artery
       end
 
       # rubocop:disable Metrics/AbcSize
-      def request(route, data = nil, _options = {})
+      def request(route, data = nil, options = {})
         raise ArgumentError, 'You must provide block to handle response' unless block_given?
         handler = Multiblock.wrapper
         uri = Routing.uri(route)
@@ -57,7 +57,7 @@ module Artery
         data ||= {}
         Artery.logger.debug "REQUESTED: <#{uri.to_route}> #{data.to_json}"
 
-        backend.request(uri.to_route, data.to_json) do |message|
+        backend.request(uri.to_route, data.to_json, options) do |message|
           if message.is_a?(Error) # timeout case
             Artery.logger.debug "REQUEST ERROR: <#{uri.to_route}> #{message.message}"
             handler.call :error, message
