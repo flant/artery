@@ -5,6 +5,7 @@ return unless defined?(::NoBrainer)
 module Artery
   module NoBrainer
     class Message
+      include MessageModel
       include ::NoBrainer::Document
       include ::NoBrainer::Document::PrecisionTimestamps
 
@@ -40,19 +41,6 @@ module Artery
         super(val.round(6))
       end
 
-      def uri
-        Artery::Routing.uri(model: model, action: action)
-      end
-
-      def uri=(uri)
-        self.model   = uri.model
-        self.action  = uri.action
-      end
-
-      def route
-        uri.to_route
-      end
-
       def previous_index
         self.class.where(model: model, :_index.lt => index).with_index(:_index).max(:_index).index
       end
@@ -67,10 +55,6 @@ module Artery
         ::NoBrainer::Lock.new('artery_messages:index').synchronize do
           self._index = self.class.latest_index(model).next
         end
-      end
-
-      def send_to_artery
-        Artery.publish route, to_artery.merge('_previous_index' => previous_index)
       end
     end
   end

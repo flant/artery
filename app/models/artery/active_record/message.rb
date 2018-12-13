@@ -5,6 +5,8 @@ return unless defined?(::ActiveRecord)
 module Artery
   module ActiveRecord
     class Message < ::ActiveRecord::Base
+      include MessageModel
+
       self.table_name = 'artery_messages'
 
       serialize :data, JSON
@@ -29,34 +31,12 @@ module Artery
         end
       end
 
-      def uri
-        Artery::Routing.uri(model: model, action: action)
-      end
-
-      def uri=(uri)
-        self.model   = uri.model
-        self.action  = uri.action
-      end
-
-      def route
-        uri.to_route
-      end
-
-      def to_artery
-        data.merge('timestamp' => created_at.to_f, '_index' => index, '_previous_index' => previous_index)
-      end
-
       def previous_index
         self.class.where(model: model)
                   .where(self.class.arel_table[:id].lt(index))
                   .maximum(:id)
       end
 
-      protected
-
-      def send_to_artery
-        Artery.publish route, to_artery
-      end
     end
   end
 end
