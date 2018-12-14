@@ -12,7 +12,7 @@ module Artery
       table_config name: 'artery_messages'
 
       field :version, type: String
-      field :model,   type: String, required: true, index: true
+      field :model,   type: String, required: true
       field :action,  type: String, required: true
       field :data,    type: Hash,   required: true
       field :_index,  type: Integer, index: true
@@ -29,11 +29,11 @@ module Artery
         end
 
         def after_index(model, index)
-          where(model: model, :_index.gt => index).with_index(:_index)
+          where(model: model, :_index.gt => index)
         end
 
         def latest_index(model)
-          where(model: model).with_index(:_index).max(:_index).index.to_i
+          where(model: model).max(:_index)&.index.to_i
         end
       end
 
@@ -42,7 +42,9 @@ module Artery
       end
 
       def previous_index
-        self.class.where(model: model, :_index.lt => index).with_index(:_index).max(:_index).index
+        return 0 unless index
+
+        self.class.where(model: model, :_index.lt => index).max(:_index)&.index
       end
 
       def to_artery

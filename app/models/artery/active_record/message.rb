@@ -27,14 +27,15 @@ module Artery
         end
 
         def latest_index(model)
-          where(model: model).maximum(:id)
+          where(model: model).last&.id.to_i
         end
       end
 
       def previous_index
         self.class.where(model: model)
                   .where(self.class.arel_table[:id].lt(index))
-                  .maximum(:id)
+                  .select(:id)
+                  .last&.id.to_i
       end
 
     end
