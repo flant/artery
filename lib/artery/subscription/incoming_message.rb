@@ -39,6 +39,10 @@ module Artery
         options[:from_updates]
       end
 
+      def update_by_us?
+        data[:updated_by_service].to_s == Artery.service_name.to_s
+      end
+
       def enrich_data
         get_uri = Routing.uri service: from_uri.service,
                               model: from_uri.model,

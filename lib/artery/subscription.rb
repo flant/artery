@@ -64,6 +64,12 @@ module Artery
         end
         return if !message.from_updates? && !validate_index(message)
 
+        if message.update_by_us?
+          Artery.logger.debug 'SKIPPING UPDATE MADE BY US'
+          update_info_by_message!(message)
+          return
+        end
+
         case message.action
         when :create, :update
           message.enrich_data do |attributes|
@@ -98,12 +104,6 @@ module Artery
       data ||= message.data
 
       info.lock_for_message(message) do
-        if message.data[:updated_by_service].to_s == Artery.service_name.to_s
-          Artery.logger.debug 'SKIPPING UPDATES MADE BY US'
-          update_info_by_message!(message)
-          return
-        end
-
         handler.call(:_before_action, message.action, data, message.reply, message.from)
 
         handler.call(message.action,  data, message.reply, message.from) ||

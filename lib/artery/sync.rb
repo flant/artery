@@ -2,8 +2,6 @@
 
 module Artery
   class Sync
-    class Error < Artery::Error; end
-
     def execute
       Artery.handle_signals
 

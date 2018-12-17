@@ -29,6 +29,10 @@ module Artery
         def latest_index(model)
           where(model: model).last&.id.to_i
         end
+
+        def delete_old
+          where('created_at < ?', MAX_MESSAGE_AGE.ago).delete_all
+        end
       end
 
       def previous_index

@@ -24,11 +24,7 @@ module Artery
         end
 
         def logger
-          @logger ||= if defined?(Rails)
-                        Rails.logger
-                      else
-                        Logger.new(STDOUT)
-                      end
+          @logger ||= LoggerProxy.new(defined?(Rails) ? Rails.logger : Logger.new(STDOUT), tags: %w[Artery])
         end
 
         def request_timeout
@@ -53,9 +49,9 @@ module Artery
 
         def get_model_class(model)
           if defined?(::ActiveRecord)
-            Artery::ActiveRecord.const_get(model)
+            ::Artery::ActiveRecord.const_get(model, false)
           elsif defined?(::NoBrainer)
-            Artery::NoBrainer.const_get(model)
+            ::Artery::NoBrainer.const_get(model, false)
           else
             raise ArgumentError, 'No supported ORMs found'
           end

@@ -6,6 +6,8 @@ module Artery
     end
 
     module ClassMethods
+      MAX_MESSAGE_AGE = ENV.fetch('ARTERY_MAX_MESSAGE_AGE') { '90' }.to_i.days
+
       def since(model, since)
         raise NotImplementedError
       end
@@ -15,6 +17,10 @@ module Artery
       end
 
       def latest_index(model)
+        raise NotImplementedError
+      end
+
+      def delete_old
         raise NotImplementedError
       end
     end

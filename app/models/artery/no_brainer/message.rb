@@ -7,9 +7,10 @@ module Artery
     class Message
       include MessageModel
       include ::NoBrainer::Document
-      include ::NoBrainer::Document::PrecisionTimestamps
 
       table_config name: 'artery_messages'
+
+      field :created_at_f, type: Float
 
       field :version, type: String
       field :model,   type: String, required: true
@@ -35,10 +36,16 @@ module Artery
         def latest_index(model)
           where(model: model).max(:_index)&.index.to_i
         end
+
+        def delete_old
+          where(:created_at_f.lt => MAX_MESSAGE_AGE.ago.to_f).delete_all
+        end
       end
 
-      def created_at_f=(val)
-        super(val.round(6))
+      def _create(options = {})
+        now = Time.zone.now
+        self.created_at_f = now.to_f.round(6) unless created_at_f_changed?
+        super
       end
 
       def previous_index
