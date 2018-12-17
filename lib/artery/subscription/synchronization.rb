@@ -43,17 +43,18 @@ module Artery
         # TODO: implement this carefully
         return if uri.service == Artery.service_name || synchronization_in_progress?
 
+
         if !new? && synchronize_updates?
-          synchronization_in_progress!
           receive_updates
         elsif new? && synchronize?
-          synchronization_in_progress!
           receive_all
         end
       end
 
       # rubocop:disable Metrics/AbcSize, Lint/RescueException, Metrics/MethodLength, Metrics/BlockLength
       def receive_all
+        synchronization_in_progress! unless synchronization_in_progress?
+
         all_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_all)
 
         page = info.synchronization_page ? info.synchronization_page + 1 : 0 if synchronization_per_page
@@ -70,31 +71,29 @@ module Artery
 
         Artery.request all_uri.to_route, all_data do |on|
           on.success do |data|
-            info.with_lock do
-              Artery.logger.debug "HEY-HEY, ALL OBJECTS: <#{all_uri.to_route}> #{[data].inspect}"
+            Artery.logger.debug "HEY-HEY, ALL OBJECTS: <#{all_uri.to_route}> #{[data].inspect}"
 
-              objects = data[:objects].map(&:with_indifferent_access)
+            objects = data[:objects].map(&:with_indifferent_access)
 
-              handler.call(:synchronization, objects, page)
+            handler.call(:synchronization, objects, page)
 
-              if synchronization_per_page && objects.count.positive?
-                synchronization_page_update!(page)
-                receive_all
-              else
-                synchronization_page_update!(nil) if synchronization_per_page
-                synchronization_in_progress!(false)
-                update_info_by_message!(IncomingMessage.new(self, data, nil, all_uri.to_route))
-              end
-            rescue Exception => e
+            if synchronization_per_page && objects.count.positive?
+              synchronization_page_update!(page)
+              receive_all
+            else
+              synchronization_page_update!(nil) if synchronization_per_page
               synchronization_in_progress!(false)
-              Artery.handle_error Error.new("Error in all objects request handling: #{e.inspect}",
-                                            original_exception: e,
-                                            request: {
-                                              route: all_uri.to_route,
-                                              data: all_data.to_json
-                                            },
-                                            response: data.to_json)
+              update_info_by_message!(IncomingMessage.new(self, data, nil, all_uri.to_route))
             end
+          rescue Exception => e
+            synchronization_in_progress!(false)
+            Artery.handle_error Error.new("Error in all objects request handling: #{e.inspect}",
+                                          original_exception: e,
+                                          request: {
+                                            route: all_uri.to_route,
+                                            data: all_data.to_json
+                                          },
+                                          response: data.to_json)
           end
 
           on.error do |e|
@@ -107,31 +106,30 @@ module Artery
       end
 
       def receive_updates
+        synchronization_in_progress!
+
         updates_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
         updates_data = { since: last_model_updated_at.to_f, after_index: latest_message_index }
 
         Artery.request updates_uri.to_route, updates_data do |on|
           on.success do |data|
-            updates_message = IncomingMessage.new(self, data, nil, updates_uri.to_route)
-            info.with_lock do
-              Artery.logger.debug "HEY-HEY, LAST_UPDATES: <#{updates_uri.to_route}> #{[data].inspect}"
+            Artery.logger.debug "HEY-HEY, LAST_UPDATES: <#{updates_uri.to_route}> #{[data].inspect}"
 
-              data['updates'].sort_by { |u| (u['_index'] || u['timestamp']).to_f }.each do |update|
-                from = Routing.uri(service: uri.service, model: uri.model, action: update.delete('action')).to_route
-                handle(IncomingMessage.new(self, update, nil, from, from_updates: true))
-              end
-              update_info_by_message! updates_message
-              synchronization_in_progress!(false)
-            rescue Exception => e
-              synchronization_in_progress!(false)
-              Artery.handle_error Error.new("Error in updates request handling: #{e.inspect}",
-                                            original_exception: e,
-                                            request: {
-                                              route: updates_uri.to_route,
-                                              data: updates_data.to_json
-                                            },
-                                            response: data.to_json)
+            data['updates'].sort_by { |u| (u['_index'] || u['timestamp']).to_f }.each do |update|
+              from = Routing.uri(service: uri.service, model: uri.model, action: update.delete('action')).to_route
+              handle(IncomingMessage.new(self, update, nil, from, from_updates: true))
             end
+            update_info_by_message! IncomingMessage.new(self, data, nil, updates_uri.to_route)
+            synchronization_in_progress!(false)
+          rescue Exception => e
+            synchronization_in_progress!(false)
+            Artery.handle_error Error.new("Error in updates request handling: #{e.inspect}",
+                                          original_exception: e,
+                                          request: {
+                                            route: updates_uri.to_route,
+                                            data: updates_data.to_json
+                                          },
+                                          response: data.to_json)
           end
 
           on.error do |e|

@@ -48,13 +48,13 @@ module Artery
         opts[:timeout] ||= Artery.request_timeout
 
         if @root_fiber && Fiber.current != @root_fiber
-          Rails.logger.debug 'SYNC REQUEST'
+          Artery.logger.debug 'SYNC REQUEST'
           response = ::NATS.request(route, data, opts)
           response ||= TimeoutError.new(request: { route: route, data: data })
 
           yield(*response)
         else
-          Rails.logger.debug 'ASYNC REQUEST'
+          Artery.logger.debug 'ASYNC REQUEST'
           sid = ::NATS.request(route, data, opts.except(:timeout)) do |*resp|
             yield(*resp)
           end

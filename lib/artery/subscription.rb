@@ -89,7 +89,7 @@ module Artery
       if message.previous_index > latest_message_index
         Artery.logger.debug 'WE\'VE GOT FUTURE MESSAGE, REQUESTING ALL MISSED'
 
-        receive_updates # this will include current message
+        synchronize! # this will include current message
         false
       elsif message.previous_index < latest_message_index
         Artery.logger.debug 'WE\'VE GOT PREVIOUS MESSAGE AND ALREADY HANDLED IT, SKIPPING'
