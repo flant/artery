@@ -64,7 +64,11 @@ module Artery
                      relation = send(scope)
                      relation = relation.offset(page * per_page).limit(per_page) if per_page
                      objects = relation.map { |obj| obj.to_artery(representation) }
-                     { objects: objects, timestamp: Time.zone.now.to_f }
+                     {
+                       objects: objects,
+                       timestamp: Time.zone.now.to_f,
+                       _index: Artery.message_class.latest_index(artery_model_name)
+                     }
                    else
                      Artery.logger.error "No artery scope '#{data['scope']}' defined!"
                      { error: 'No such scope!' }
@@ -77,11 +81,25 @@ module Artery
             Artery.logger.info "HEY-HEY-HEY, message on GET_UPDATES with arguments: `#{[data, reply, sub].inspect}`!"
 
             since = (data['since'] * 10**5).ceil.to_f / 10**5 # a little less accuracy
+            index = data['after_index'].to_i
 
-            messages = Artery.message_class.since(artery_model_name, since)
+            if index.positive?
+              # new-style (since 0.7)
+              messages = Artery.message_class.after_index(artery_model_name, index)
+            else
+              # DEPRECATED: old-style (before 0.7)
+              messages = Artery.message_class.since(artery_model_name, since)
+            end
+
+            # Deduplicate
+            messages = messages.to_a.group_by { |m| [m.action, m.data] }.values
+                                    .map { |mm| mm.sort_by { |m| m.index.to_i }.last }
+                                    .sort_by { |m| m.index.to_i }
+
             Artery.logger.info "MESSAGES: #{messages.inspect}"
 
-            Artery.publish(reply, updates: messages.map { |obj| obj.to_artery.merge('action' => obj.action) })
+            Artery.publish(reply, updates: messages.map { |obj| obj.to_artery.merge('action' => obj.action) },
+                                  _index: Artery.message_class.latest_index(artery_model_name))
           end
         end
         # rubocop:enable Metrics/AbcSize

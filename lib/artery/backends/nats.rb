@@ -5,89 +5,78 @@ require 'nats/client'
 module Artery
   module Backends
     class NATS < Base
+      def initialize(*args)
+        super
+        @root_fiber = Fiber.current
+      end
+
       def start(&blk)
         ::NATS.start(options, &blk)
       end
 
       def connect(&blk)
+        return if connected?
+
         ::NATS.connect(options, &blk)
       end
 
+      def connected?
+        ::NATS.connected?
+      end
+
       def subscribe(*args, &blk)
-        ::NATS.subscribe(*args, &blk)
+        connect
+
+        ::NATS.subscribe(*args) do |*msg|
+          Fiber.new do
+            # requests inside subscription block will be synchronous
+            blk.call(*msg)
+          end.resume
+        end
       end
 
       def unsubscribe(*args, &blk)
+        connect
+
         ::NATS.unsubscribe(*args, &blk)
       end
 
       def request(route, data, opts = {}, &blk)
+        connect
+
         opts[:max] = 1 unless opts.key?(:max) # Set max to 1 for auto-unsubscribe from INBOX-channels
-        sid = nil
+        opts[:timeout] ||= Artery.request_timeout
 
-        do_request = proc do
-          sid = ::NATS.request(route, data, opts) do |*resp|
-            correct_request_stop(sid) { yield(*resp) }
-          end
+        if @root_fiber && Fiber.current != @root_fiber
+          Artery.logger.debug 'SYNC REQUEST'
+          response = ::NATS.request(route, data, opts)
+          response ||= TimeoutError.new(request: { route: route, data: data })
 
-          requests << sid
-
-          ::NATS.timeout(sid, Artery.request_timeout) do
-            correct_request_stop(sid) { yield(TimeoutError.new(request: { route: route, data: data })) }
-          end
-        end
-
-        if Artery.worker || (EM.reactor_running? && (EM.reactor_thread == Thread.current))
-          do_request.call(&blk)
+          yield(*response)
         else
-          wait_em_to_stop if EM.reactor_running?
-
-          start do
-            Thread.current[:inside_sync_request] = true
-
-            do_request.call(&blk)
+          Artery.logger.debug 'ASYNC REQUEST'
+          sid = ::NATS.request(route, data, opts.except(:timeout)) do |*resp|
+            yield(*resp)
           end
-          Thread.current[:inside_sync_request] = nil
+
+          ::NATS.timeout(sid, opts[:timeout]) do
+            yield(TimeoutError.new(request: { route: route, data: data }))
+          end
         end
       end
 
       def publish(*args, &blk)
-        do_publish = proc do
-          rid = SecureRandom.uuid
+        connect
 
-          requests << rid
-
-          ::NATS.publish(*args) do
-            correct_request_stop(rid) {}
-          end
-        end
-
-        if Artery.worker || (EM.reactor_running? && (EM.reactor_thread == Thread.current))
-          do_publish.call(&blk)
-        else
-          wait_em_to_stop if EM.reactor_running?
-
-          start do
-            Thread.current[:inside_sync_request] = true
-
-            do_publish.call(&blk)
-          end
-          Thread.current[:inside_sync_request] = nil
-        end
+        ::NATS.publish(*args)
       end
 
       def stop(*args, &blk)
-        return false unless requests.blank?
-
         ::NATS.stop(*args, &blk)
         true
       end
 
       private
-
-      def requests
-        @requests ||= []
-      end
 
       # rubocop:disable Metrics/AbcSize
       def options
@@ -108,19 +97,6 @@ module Artery
         options
       end
       # rubocop:enable Metrics/AbcSize
-
-      def correct_request_stop(sid = nil)
-        yield
-      ensure
-        requests.delete(sid) if sid
-        stop if Thread.current[:inside_sync_request]
-      end
-
-      def wait_em_to_stop
-        Artery.logger.debug 'WAITING_EM_TO_STOP: it is running in another thread'
-
-        sleep(0.01) while EM.reactor_running?
-      end
     end
   end
 end
