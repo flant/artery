@@ -104,12 +104,16 @@ module Artery
       data ||= message.data
 
       info.lock_for_message(message) do
-        handler.call(:_before_action, message.action, data, message.reply, message.from)
+        if data.blank? # data is blank when enrich failed with not_found
+          Artery.logger.debug 'SKIP HANDLING MESSAGE BECAUSE RESULT DATA IS BLANK'
+        else
+          handler.call(:_before_action, message.action, data, message.reply, message.from)
 
-        handler.call(message.action,  data, message.reply, message.from) ||
-          handler.call(:_default, data, message.reply, message.from)
+          handler.call(message.action,  data, message.reply, message.from) ||
+            handler.call(:_default, data, message.reply, message.from)
 
-        handler.call(:_after_action, message.action, data, message.reply, message.from)
+          handler.call(:_after_action, message.action, data, message.reply, message.from)
+        end
 
         update_info_by_message!(message) unless message.from_updates?
       end

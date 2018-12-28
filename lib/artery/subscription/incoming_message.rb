@@ -70,14 +70,18 @@ module Artery
           end
 
           on.error do |e|
-            error = Error.new("Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{e.message}",
-              e.artery_context.merge(subscription: {
-                subscriber: subscription.subscriber.to_s,
-                data: data.to_json,
-                route: from_uri.to_route,
-              })
-            )
-            Artery.handle_error error
+            if e.message == 'not_found'
+              yield({})
+            else
+              error = Error.new("Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{e.message}",
+                e.artery_context.merge(subscription: {
+                  subscriber: subscription.subscriber.to_s,
+                  data: data.to_json,
+                  route: from_uri.to_route,
+                })
+              )
+              Artery.handle_error error
+            end
           end
         end
       end

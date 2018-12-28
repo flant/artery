@@ -31,7 +31,7 @@ module Artery
         end
 
         def delete_old
-          where('created_at < ?', MAX_MESSAGE_AGE.ago).delete_all
+          where(arel_table[:created_at].lt(MAX_MESSAGE_AGE.ago)).delete_all
         end
       end
 
