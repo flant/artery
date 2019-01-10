@@ -71,7 +71,7 @@ module Artery
 
           on.error do |e|
             if e.message == 'not_found'
-              yield({})
+              yield(:not_found)
             else
               error = Error.new("Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{e.message}",
                 e.artery_context.merge(subscription: {
