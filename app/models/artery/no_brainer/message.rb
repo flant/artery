@@ -30,7 +30,7 @@ module Artery
         end
 
         def after_index(model, index)
-          where(model: model, :_index.gt => index)
+          where(model: model, :_index.gt => index).order(:_index)
         end
 
         def latest_index(model)

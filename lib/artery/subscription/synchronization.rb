@@ -115,12 +115,20 @@ module Artery
           on.success do |data|
             Artery.logger.debug "HEY-HEY, LAST_UPDATES: <#{updates_uri.to_route}> #{[data].inspect}"
 
-            data['updates'].sort_by { |u| (u['_index'] || u['timestamp']).to_f }.each do |update|
-              from = Routing.uri(service: uri.service, model: uri.model, action: update.delete('action')).to_route
+            updates = data[:updates].map(&:with_indifferent_access)
+            updates.sort_by { |u| (u[:_index] || u[:timestamp]).to_f }.each do |update|
+              from = Routing.uri(service: uri.service, model: uri.model, action: update.delete(:action)).to_route
               handle(IncomingMessage.new(self, update, nil, from, from_updates: true))
             end
+
             update_info_by_message! IncomingMessage.new(self, data, nil, updates_uri.to_route)
-            synchronization_in_progress!(false)
+            if data[:_continue]
+              Artery.logger.debug "NOT ALL UPDATES RECEIVED, CONTINUE..."
+
+              receive_updates
+            else
+              synchronization_in_progress!(false)
+            end
           rescue Exception => e
             synchronization_in_progress!(false)
             Artery.handle_error Error.new("Error in updates request handling: #{e.inspect}",

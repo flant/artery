@@ -5,6 +5,8 @@ module Artery
     module Subscriptions
       extend ActiveSupport::Concern
 
+      ARTERY_MAX_UPDATES_SYNC = 2000 # we should limit updates fetched at once
+
       included do
         artery_add_get_subscriptions if artery_source_model?
 
@@ -80,15 +82,15 @@ module Artery
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_updates) do |data, reply, sub|
             Artery.logger.info "HEY-HEY-HEY, message on GET_UPDATES with arguments: `#{[data, reply, sub].inspect}`!"
 
-            since = (data['since'] * 10**5).ceil.to_f / 10**5 # a little less accuracy
+            since = (data['since'] * 10**5).ceil.to_f / 10**5  if data['since'] # a little less accuracy
             index = data['after_index'].to_i
 
             if index.positive?
               # new-style (since 0.7)
-              messages = Artery.message_class.after_index(artery_model_name, index)
+              messages = Artery.message_class.after_index(artery_model_name, index).limit(ARTERY_MAX_UPDATES_SYNC)
             else
               # DEPRECATED: old-style (before 0.7)
-              messages = Artery.message_class.since(artery_model_name, since)
+              messages = Artery.message_class.since(artery_model_name, since).limit(ARTERY_MAX_UPDATES_SYNC)
             end
 
             # Deduplicate
@@ -96,10 +98,12 @@ module Artery
                                     .map { |mm| mm.sort_by { |m| m.index.to_i }.last }
                                     .sort_by { |m| m.index.to_i }
 
+            latest_index = messages.last.index
+
             Artery.logger.info "MESSAGES: #{messages.inspect}"
 
             Artery.publish(reply, updates: messages.map { |obj| obj.to_artery.merge('action' => obj.action) },
-                                  _index: Artery.message_class.latest_index(artery_model_name))
+                                  _index: latest_index, _continue: latest_index < Artery.message_class.latest_index(artery_model_name))
           end
         end
         # rubocop:enable Metrics/AbcSize

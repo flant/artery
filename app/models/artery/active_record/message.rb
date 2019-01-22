@@ -23,7 +23,7 @@ module Artery
 
         def after_index(model, index)
           where(model: model)
-            .where(arel_table[:id].gt(index))
+            .where(arel_table[:id].gt(index)).order(:id)
         end
 
         def latest_index(model)
