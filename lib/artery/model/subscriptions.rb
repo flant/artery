@@ -98,12 +98,13 @@ module Artery
                                     .map { |mm| mm.sort_by { |m| m.index.to_i }.last }
                                     .sort_by { |m| m.index.to_i }
 
-            latest_index = messages.last.index
+            latest_index = Artery.message_class.latest_index(artery_model_name)
+            updates_latest_index = messages.last&.index || latest_index
 
             Artery.logger.info "MESSAGES: #{messages.inspect}"
 
             Artery.publish(reply, updates: messages.map { |obj| obj.to_artery.merge('action' => obj.action) },
-                                  _index: latest_index, _continue: latest_index < Artery.message_class.latest_index(artery_model_name))
+                                  _index: updates_latest_index, _continue: updates_latest_index < latest_index)
           end
         end
         # rubocop:enable Metrics/AbcSize
