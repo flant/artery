@@ -29,7 +29,7 @@ module Artery
           if !(was_locked = @locked) # prevent double lock to reduce selects
             Artery.logger.debug "WAITING FOR LOCK..."
 
-            lock!
+            reload lock: true # explicitely reload record
 
             Artery.logger.debug "GOT LOCK!"
 

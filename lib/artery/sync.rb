@@ -2,15 +2,16 @@
 
 module Artery
   class Sync
-    def execute
-      Artery.handle_signals
+    def execute(services = nil)
+      services = Array.wrap(services).map(&:to_sym)
+      subscriptions_on_services = services.blank? ? Artery.subscriptions : Artery.subscriptions_on(services)
 
-      if Artery.subscriptions.blank?
-        Artery.logger.warn 'No subscriptions defined, exiting...'
+      if subscriptions_on_services.blank?
+        Artery.logger.warn 'No suitable subscriptions defined, exiting...'
         return
       end
 
-      Artery.subscriptions.values.flatten.uniq.each(&:synchronize!)
+      subscriptions_on_services.values.flatten.uniq.each(&:synchronize!)
     end
   end
 end

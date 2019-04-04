@@ -12,6 +12,12 @@ module Artery
     end
 
     module ClassMethods
+      def subscriptions_on(*services)
+        services = services.flatten.map(&:to_sym)
+
+        subscriptions.slice(*subscriptions.keys.select { |uri| services.include?(uri.service) })
+      end
+
       def add_subscription(subscription)
         @subscriptions ||= {}
         @subscriptions[subscription.uri] ||= []

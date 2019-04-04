@@ -8,4 +8,4 @@ Rails.application.eager_load!
 
 Artery.use_backend :nats # redefine because only default works in worker
 
-Artery::Worker.new.run
+Artery::Worker.new.run ARGV.map(&:strip)

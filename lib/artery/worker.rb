@@ -14,9 +14,12 @@ module Artery
     end
 
     # rubocop:disable Metrics/AbcSize, Lint/RescueException, Metrics/BlockLength
-    def run
-      if Artery.subscriptions.blank?
-        Artery.logger.warn 'No subscriptions defined, exiting...'
+    def run(services = nil)
+      services = Array.wrap(services).map(&:to_sym)
+      subscriptions_on_services = services.blank? ? Artery.subscriptions : Artery.subscriptions_on(services)
+
+      if subscriptions_on_services.blank?
+        Artery.logger.warn 'No suitable subscriptions defined, exiting...'
         return
       end
 
@@ -30,9 +33,9 @@ module Artery
         begin
           subscribe_healthz
 
-          @sync.execute
+          @sync.execute services
 
-          Artery.subscriptions.each do |uri, subscriptions|
+          subscriptions_on_services.each do |uri, subscriptions|
             Artery.logger.debug "Subscribing on '#{uri}'"
             Artery.subscribe uri.to_route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
               subscriptions.each do |subscription|
