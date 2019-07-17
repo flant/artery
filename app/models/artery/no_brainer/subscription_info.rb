@@ -53,14 +53,14 @@ module Artery
         if (was_locked) # only 'indexed' messages should lock
           yield
         else
-          Artery.logger.debug "WAITING FOR LOCK..."
+          Artery.logger.debug "WAITING FOR LOCK... [LATEST_INDEX: #{latest_index}]"
 
           lock = ::NoBrainer::Lock.new("artery_subscription_info:#{model}")
 
           lock.synchronize do
-            Artery.logger.debug "GOT LOCK!"
+            Artery.logger.debug "GOT LOCK! [LATEST_INDEX: #{latest_index}]"
             reload # need fresh record
-            
+
             @lock = lock
 
             yield

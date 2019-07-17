@@ -27,11 +27,11 @@ module Artery
       def with_lock
         self.class.transaction do
           if !(was_locked = @locked) # prevent double lock to reduce selects
-            Artery.logger.debug "WAITING FOR LOCK..."
+            Artery.logger.debug "WAITING FOR LOCK...  [LATEST_INDEX: #{latest_index}]"
 
             reload lock: true # explicitely reload record
 
-            Artery.logger.debug "GOT LOCK!"
+            Artery.logger.debug "GOT LOCK! [LATEST_INDEX: #{latest_index}]"
 
             @locked = true
           end

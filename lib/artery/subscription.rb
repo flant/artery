@@ -45,7 +45,7 @@ module Artery
     end
 
     def update_info_by_message!(message)
-      return unless message.has_index?
+      return if !message.has_index? || message.from_updates?
 
       # DEPRECATED: old-style (pre 0.7)
       info.update! last_message_at: Time.zone.at(message.timestamp) if message.timestamp > last_model_updated_at.to_f
@@ -115,7 +115,7 @@ module Artery
           handler.call(:_after_action, message.action, data, message.reply, message.from)
         end
 
-        update_info_by_message!(message) unless message.from_updates?
+        update_info_by_message!(message)
       end
     end
   end
