@@ -11,6 +11,7 @@ module Artery
 
       serialize :data, JSON
 
+      before_save :lock_previous_index
       after_commit :send_to_artery
 
       alias :index :id
@@ -35,13 +36,17 @@ module Artery
         end
       end
 
-      def previous_index
-        self.class.where(model: model)
-                  .where(self.class.arel_table[:id].lt(index))
-                  .select(:id)
-                  .last&.id.to_i
+      def lock_previous_index
+        scope = self.class.where(model: model).order(:id)
+        scope = scope.where(self.class.arel_table[:id].lt(index)) if index
+        scope = scope.lock
+
+        @previous_index = scope.select(:id).last&.id.to_i
       end
 
+      def previous_index
+        @previous_index || lock_previous_index
+      end
     end
   end
 end

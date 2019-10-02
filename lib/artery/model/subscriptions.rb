@@ -18,6 +18,12 @@ module Artery
           find_by "#{artery_uuid_attribute}": uuid
         end
 
+        def artery_resync!
+          return false if artery_source_model?
+
+          artery[:subscriptions]&.detect(&:synchronize?)&.receive_all
+        end
+
         def artery_add_subscription(uri, options = {}, &blk)
           raise ArgumentError, 'block must be provided to handle subscription updates' unless block_given?
 
