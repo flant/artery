@@ -22,7 +22,7 @@ module Artery
 
       after_save :send_to_artery
 
-      around_create :lock_on_index
+      around_create :lock_on_model
       before_create :assign_index
 
       class << self
@@ -61,8 +61,8 @@ module Artery
 
       protected
 
-      def lock_on_index
-        ::NoBrainer::Lock.new('artery_messages:index').synchronize do
+      def lock_on_model
+        ::NoBrainer::Lock.new("#{self.class.table_name}:#{model}").synchronize do
           yield
         end
       end

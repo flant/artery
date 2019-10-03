@@ -6,6 +6,7 @@ require 'artery/errors'
 require 'artery/backends/base'
 
 require 'multiblock'
+require 'with_advisory_lock'
 
 module Artery
   autoload :Config,        'artery/config'
