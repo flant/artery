@@ -47,11 +47,14 @@ module Artery
     def update_info_by_message!(message)
       return if !message.has_index? || message.from_updates?
 
+      new_data = {}
       # DEPRECATED: old-style (pre 0.7)
-      info.update! last_message_at: Time.zone.at(message.timestamp) if message.timestamp > last_model_updated_at.to_f
+      new_data[:last_message_at] = Time.zone.at(message.timestamp) if message.timestamp > last_model_updated_at.to_f
 
       # new-style (since 0.7)
-      info.update! latest_index: message.index if message.index.positive? && (message.index > latest_message_index)
+      new_data[:latest_index] = message.index if message.index.positive? && (message.index > latest_message_index)
+
+      info.update! new_data
     end
 
     def handle(message)

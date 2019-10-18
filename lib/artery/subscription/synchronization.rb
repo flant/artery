@@ -111,7 +111,7 @@ module Artery
         updates_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
         updates_data = { since: last_model_updated_at.to_f, after_index: latest_message_index }
 
-        Artery.request updates_uri.to_route, updates_data do |on|
+        Artery.request updates_uri.to_route, updates_data, sync_handler: true do |on|
           on.success do |data|
             Artery.logger.debug "HEY-HEY, LAST_UPDATES: <#{updates_uri.to_route}> #{[data].inspect}"
 

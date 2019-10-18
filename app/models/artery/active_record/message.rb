@@ -50,7 +50,7 @@ module Artery
       protected
 
       def lock_on_model
-        self.class.with_advisory_lock("#{self.class.table_name}.#{model}") do
+        self.class.with_advisory_lock("#{self.class.table_name}:#{model}") do
           load_previous_index
 
           yield

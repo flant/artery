@@ -41,7 +41,7 @@ module Artery
         ::NATS.unsubscribe(*args, &blk)
       end
 
-      def request(route, data, opts = {}, &blk)
+      def request(route, data, opts = {})
         connect
 
         opts[:max] = 1 unless opts.key?(:max) # Set max to 1 for auto-unsubscribe from INBOX-channels
@@ -56,7 +56,11 @@ module Artery
         else
           Artery.logger.debug 'ASYNC REQUEST'
           sid = ::NATS.request(route, data, opts.except(:timeout)) do |*resp|
-            yield(*resp)
+            next yield(*resp) unless opts[:sync_handler]
+
+            Fiber.new do
+              yield(*resp)
+            end.resume
           end
 
           ::NATS.timeout(sid, opts[:timeout]) do
