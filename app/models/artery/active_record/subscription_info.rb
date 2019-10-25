@@ -20,6 +20,7 @@ module Artery
             end
           end
 
+          info.save! if info.new_record?
           info
         end
       end

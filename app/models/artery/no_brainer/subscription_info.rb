@@ -35,6 +35,8 @@ module Artery
               info.send("#{att}=", prev_info.send(att))
             end
           end
+
+          info.save! if info.new_record?
           info
         end
       end
