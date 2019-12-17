@@ -73,7 +73,7 @@ module Artery
           return
         end
 
-        unless handler.has_block?(message.action)
+        unless handler.has_block?(message.action) || handler.has_block?(:_default)
           Artery.logger.debug 'SKIPPING MESSAGE WE ARE NOT LISTENING TO'
           update_info_by_message!(message)
           return
