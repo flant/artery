@@ -60,6 +60,11 @@ module Artery
     def handle(message)
       Artery.logger.debug "GOT MESSAGE: #{message.inspect}"
 
+      unless handler.has_block?(message.action)
+        Artery.logger.debug 'SKIPPING MESSAGE WE ARE NOT LISTENING TO'
+        return
+      end
+
       info.lock_for_message(message) do
         if !message.from_updates? && synchronization_in_progress?
           Artery.logger.debug 'SKIPPING MESSAGE RECEIVED WHILE SYNC IN PROGRESS'
