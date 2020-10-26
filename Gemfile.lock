@@ -1,10 +1,10 @@
 PATH
   remote: .
   specs:
-    artery (0.7.11)
+    artery (0.7.12)
       multiblock (~> 0.2)
       nats (~> 0.8)
-      rails (>= 4.2, < 6.0)
+      rails (>= 4.2, < 6.1)
       with_advisory_lock (>= 4.0, < 5.0)
 
 GEM
