@@ -36,7 +36,7 @@ module Artery
           end
 
           artery[:subscriptions] ||= []
-          artery[:subscriptions].push Subscription.new(self, uri, options.merge(handler: handler))
+          artery[:subscriptions].push Subscription.new(self, uri, **options.merge(handler: handler))
         end
 
         def artery_watch_model(service:, model: nil, action: nil, **kwargs, &blk)

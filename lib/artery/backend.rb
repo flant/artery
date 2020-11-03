@@ -10,13 +10,12 @@ module Artery
 
         def register_backend(type, class_name)
           @backends ||= {}
-          @backends[type.to_sym] = Artery::Backends.const_get class_name
-        rescue LoadError, NameError
-          false
+          @backends[type.to_sym] = class_name
         end
 
         def use_backend(type)
-          raise ArgumentError, "Artery has no registered backend '#{type}'" unless backends[type.to_sym]
+          type = type.to_sym
+          raise ArgumentError, "Artery has no registered backend '#{type}'" unless backends.key?(type)
 
           @backend_in_use = type
 
@@ -25,7 +24,12 @@ module Artery
         end
 
         def backend
-          @backend ||= backends[backend_in_use].new backend_config
+          @backend ||= begin
+            backend_class = Artery::Backends.const_get(backends[backend_in_use])
+            backend_class.new backend_config
+          rescue LoadError, NameError => e
+            raise "Unable to load backend #{type}: #{e.message}"
+          end
         end
 
         delegate :start, :stop, :connect, :unsubscribe, to: :backend
