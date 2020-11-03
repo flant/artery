@@ -29,6 +29,10 @@ module Artery
     autoload :NATSPure, 'artery/backends/nats_pure'
   end
 
+  # ORMs
+  autoload :ActiveRecord, 'artery/active_record'
+  autoload :NoBrainer,    'artery/no_brainer'
+
   register_backend :nats,      :NATS
   register_backend :nats_pure, :NATSPure
 

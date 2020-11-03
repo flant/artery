@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-return unless defined?(::NoBrainer)
-
 module Artery
   module NoBrainer
     class Message
