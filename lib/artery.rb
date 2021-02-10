@@ -27,6 +27,7 @@ module Artery
     autoload :Base,     'artery/backends/base'
     autoload :NATS,     'artery/backends/nats'
     autoload :NATSPure, 'artery/backends/nats_pure'
+    autoload :Fake,     'artery/backends/fake'
   end
 
   # ORMs
@@ -35,6 +36,7 @@ module Artery
 
   register_backend :nats,      :NATS
   register_backend :nats_pure, :NATSPure
+  register_backend :fake,      :Fake
 
   use_backend :nats # default
 
