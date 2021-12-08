@@ -31,7 +31,7 @@ module Artery
 
         def delete_old
           max_aged_id = where(arel_table[:created_at].lt(MAX_MESSAGE_AGE.ago)).maximum(:id)
-          where(arel_table[:id].lt(max_aged_id)).delete_all
+          where(arel_table[:id].lteq(max_aged_id)).delete_all if max_aged_id.to_i > 0
         end
       end
 
