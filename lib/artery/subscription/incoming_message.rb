@@ -7,6 +7,7 @@ module Artery
       def initialize(subscription, data, reply, from, **options)
         @subscription = subscription
         @data         = data
+        @attributes   = data[:attributes]
         @reply        = reply
         @from         = from
         @from_uri     = Routing.uri(@from)
@@ -25,13 +26,7 @@ module Artery
         data[:_previous_index].to_i
       end
 
-      def timestamp
-        # DEPRECATED: old-style (pre 0.7)
-        data[:timestamp].to_f
-      end
-
       def has_index?
-        timestamp.positive? || # DEPRECATED: old-style (pre 0.7)
         index.positive?
       end
 
@@ -44,14 +39,19 @@ module Artery
       end
 
       def enrich_data
+        # NO enrich needed as we already have message with attributes
+        if @attributes
+          yield @attributes
+          return
+        end
+
         get_uri = Routing.uri service: from_uri.service,
                               model: from_uri.model,
                               plural: true,
                               action: :get
         get_data = {
           uuid: data[:uuid],
-          representation: subscription.representation_name,
-          service: subscription.representation_name # DEPRECATED: old-style param
+          representation: subscription.representation_name
         }
 
         Artery.request get_uri.to_route, get_data do |on|

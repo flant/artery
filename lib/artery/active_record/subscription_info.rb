@@ -11,13 +11,6 @@ module Artery
                                        service: subscription.uri.service,
                                        model: subscription.uri.model)
 
-          # Temporary for easier migration from previous scheme without subscriber
-          if info.new_record? && (prev_info = find_by(service: subscription.uri.service, model: subscription.uri.model))
-            %i[last_message_at synchronization_in_progress synchronization_page].each do |att|
-              info.send("#{att}=", prev_info.send(att))
-            end
-          end
-
           info.save! if info.new_record?
           info
         end

@@ -7,7 +7,7 @@ Rails.application.initialize!
 Rails.application.eager_load!
 
 begin
-  Artery::Sync.new.execute
+  Artery::Sync.new.execute ARGV.map(&:strip)
 ensure
   Artery.clear_synchronizing_subscriptions!
 end

@@ -8,10 +8,6 @@ module Artery
     module ClassMethods
       MAX_MESSAGE_AGE = ENV.fetch('ARTERY_MAX_MESSAGE_AGE') { '90' }.to_i.days
 
-      def since(model, since)
-        raise NotImplementedError
-      end
-
       def after_index(model, index)
         raise NotImplementedError
       end
@@ -39,7 +35,7 @@ module Artery
     end
 
     def to_artery
-      data.merge('timestamp' => created_at.to_f, '_index' => index)
+      data.merge('_index' => index)
     end
 
     def previous_index
