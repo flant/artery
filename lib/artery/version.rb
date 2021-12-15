@@ -1,5 +1,5 @@
 # frozen_string_literal: true
 
 module Artery
-  VERSION = '0.7.15'
+  VERSION = '0.8.0'
 end

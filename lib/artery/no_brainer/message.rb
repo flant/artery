@@ -24,10 +24,6 @@ module Artery
       before_create :assign_index
 
       class << self
-        def since(model, since)
-          where(model: model, :created_at_f.gt => since)
-        end
-
         def after_index(model, index)
           where(model: model, :_index.gt => index).order(:_index)
         end
@@ -54,7 +50,7 @@ module Artery
       end
 
       def to_artery
-        data.merge('timestamp' => created_at_f, '_index' => index)
+        data.merge('_index' => index)
       end
 
       protected

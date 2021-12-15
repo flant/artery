@@ -62,7 +62,6 @@ module Artery
         objects = nil
 
         all_data = {
-          service: representation_name, # DEPRECATED: old-style param
           representation: representation_name,
           scope: synchronization_scope,
           page: page,
@@ -109,14 +108,18 @@ module Artery
         synchronization_in_progress!
 
         updates_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
-        updates_data = { since: last_model_updated_at.to_f, after_index: latest_message_index }
+        updates_data = {
+          after_index: latest_message_index,
+          representation: representation_name,
+          per_page: synchronization_per_page # we must setup per_page as data is autoenriched and can be big
+        }
 
         Artery.request updates_uri.to_route, updates_data, sync_handler: true do |on|
           on.success do |data|
             Artery.logger.debug "HEY-HEY, LAST_UPDATES: <#{updates_uri.to_route}> #{[data].inspect}"
 
             updates = data[:updates].map(&:with_indifferent_access)
-            updates.sort_by { |u| (u[:_index] || u[:timestamp]).to_f }.each do |update|
+            updates.sort_by { |u| u[:_index] }.each do |update|
               from = Routing.uri(service: uri.service, model: uri.model, action: update.delete(:action)).to_route
               handle(IncomingMessage.new(self, update, nil, from, from_updates: true))
             end

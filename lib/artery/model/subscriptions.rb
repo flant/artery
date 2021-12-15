@@ -52,7 +52,7 @@ module Artery
             Artery.logger.info "HEY-HEY-HEY, message on GET with arguments: `#{[data, reply, sub].inspect}`!"
             obj = artery_find data['uuid']
 
-            representation = data['representation'] || data['service'] # DEPRECATED: old-style param
+            representation = data['representation']
 
             data = obj.blank? ? { error: 'not_found' } : obj.to_artery(representation)
 
@@ -66,7 +66,7 @@ module Artery
             per_page = data['per_page']
             page     = data['page'] || 0
 
-            representation = data['representation'] || data['service'] # DEPRECATED: old-style param
+            representation = data['representation']
 
             data = if respond_to?(scope)
                      relation = send(scope)
@@ -74,7 +74,6 @@ module Artery
                      objects = relation.map { |obj| obj.to_artery(representation) }
                      {
                        objects: objects,
-                       timestamp: Time.zone.now.to_f,
                        _index: Artery.message_class.latest_index(artery_model_name)
                      }
                    else
@@ -88,15 +87,14 @@ module Artery
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_updates) do |data, reply, sub|
             Artery.logger.info "HEY-HEY-HEY, message on GET_UPDATES with arguments: `#{[data, reply, sub].inspect}`!"
 
-            since = (data['since'] * 10**5).ceil.to_f / 10**5  if data['since'] # a little less accuracy
             index = data['after_index'].to_i
+            per_page = data['per_page'] || ARTERY_MAX_UPDATES_SYNC
 
             if index.positive?
-              # new-style (since 0.7)
-              messages = Artery.message_class.after_index(artery_model_name, index).limit(ARTERY_MAX_UPDATES_SYNC)
+              messages = Artery.message_class.after_index(artery_model_name, index).limit(per_page)
             else
-              # DEPRECATED: old-style (before 0.7)
-              messages = Artery.message_class.since(artery_model_name, since).limit(ARTERY_MAX_UPDATES_SYNC)
+              Artery.publish(reply, error: :bad_index)
+              return
             end
 
             # Deduplicate
@@ -109,7 +107,20 @@ module Artery
 
             Artery.logger.info "MESSAGES: #{messages.inspect}"
 
-            Artery.publish(reply, updates: messages.map { |obj| obj.to_artery.merge('action' => obj.action) },
+            updates = messages.map do |message|
+              upd = message.to_artery.merge('action' => message.action)
+
+              # Autoenrich data
+              if data['representation'] &&
+                 %i[create update].include?(message.action.to_sym) && # WARNING: duplicated logic with `Subscription#handle`!
+                 (obj = artery_find(message.data['uuid']))
+
+                upd['attributes'] = obj.to_artery(data['representation'])
+              end
+              upd
+            end
+
+            Artery.publish(reply, updates: updates,
                                   _index: updates_latest_index, _continue: updates_latest_index < latest_index)
           end
         end

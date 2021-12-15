@@ -15,11 +15,6 @@ module Artery
       alias :index :id
 
       class << self
-        def since(model, since)
-          where(model: model)
-            .where('created_at > ?', Time.zone.at(since)) # TODO: ZONE? SEARCH IN MCS?
-        end
-
         def after_index(model, index)
           where(model: model)
             .where(arel_table[:id].gt(index)).order(:id)

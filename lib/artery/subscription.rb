@@ -32,26 +32,18 @@ module Artery
       options[:representation]
     end
 
-    def last_model_updated_at
-      info.last_message_at
-    end
-
     def latest_message_index
       info.latest_index.to_i
     end
 
     def new?
-      !last_model_updated_at && !latest_message_index.positive?
+      !latest_message_index.positive?
     end
 
     def update_info_by_message!(message)
       return if !message.has_index? || message.from_updates?
 
       new_data = {}
-      # DEPRECATED: old-style (pre 0.7)
-      new_data[:last_message_at] = Time.zone.at(message.timestamp) if message.timestamp > last_model_updated_at.to_f
-
-      # new-style (since 0.7)
       new_data[:latest_index] = message.index if message.index.positive? && (message.index > latest_message_index)
 
       info.update! new_data
