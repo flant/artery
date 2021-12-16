@@ -14,8 +14,12 @@ module Artery
       end
 
       module ClassMethods
+        def artery_find_all(uuids)
+          where "#{artery_uuid_attribute}": uuids
+        end
+
         def artery_find(uuid)
-          find_by "#{artery_uuid_attribute}": uuid
+          artery_find_all([uuid]).first
         end
 
         def artery_resync!
@@ -107,15 +111,20 @@ module Artery
 
             Artery.logger.info "MESSAGES: #{messages.inspect}"
 
+            # Autoenrich data
+            if data['representation']
+              scope = "artery_#{data['scope'] || 'all'}"
+              autoenrich_data = send(scope).artery_find_all(messages.map { |m| m.data['uuid'] }).map do |obj|
+                [obj.send(artery_uuid_attribute) , obj.to_artery(data['representation'])]
+              end.to_h
+            end
+
             updates = messages.map do |message|
               upd = message.to_artery.merge('action' => message.action)
-
-              # Autoenrich data
-              if data['representation'] &&
-                 %i[create update].include?(message.action.to_sym) && # WARNING: duplicated logic with `Subscription#handle`!
-                 (obj = artery_find(message.data['uuid']))
-
-                upd['attributes'] = obj.to_artery(data['representation'])
+              if %i[create update].include?(message.action.to_sym) && # WARNING: duplicated logic with `Subscription#handle`!
+                 autoenrich_data &&
+                 (attrs = autoenrich_data[message.data['uuid']])
+                upd['attributes'] = attrs
               end
               upd
             end
