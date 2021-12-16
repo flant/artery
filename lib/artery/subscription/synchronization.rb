@@ -109,10 +109,14 @@ module Artery
 
         updates_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
         updates_data = {
-          after_index: latest_message_index,
-          representation: representation_name,
-          per_page: synchronization_per_page # we must setup per_page as data is autoenriched and can be big
+          after_index: latest_message_index
         }
+
+        # Configurable autoenrich updates
+        if ENV['ARTERY_AUTOENRICH_GET_UPDATES'] == 'true'
+           # we must setup per_page as data is autoenriched and can be big
+          updates_data.merge! representation: representation_name, per_page: synchronization_per_page
+        end
 
         Artery.request updates_uri.to_route, updates_data, sync_handler: true do |on|
           on.success do |data|

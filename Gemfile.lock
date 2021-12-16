@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    artery (0.8.0)
+    artery (0.8.1)
       multiblock (~> 0.2)
       nats (~> 0.8)
       rails (>= 4.2, < 7)
