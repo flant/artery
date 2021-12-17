@@ -16,6 +16,12 @@ module Artery
         end
       end
 
+      def synchronization_transaction
+        with_lock do
+          yield
+        end
+      end
+
       def with_lock
         self.class.transaction do
           if !(was_locked = @locked) # prevent double lock to reduce selects

@@ -39,6 +39,13 @@ module Artery
         info.update! synchronization_in_progress: val
       end
 
+      def synchronization_transaction(&blk)
+        return unless blk
+        return info.synchronization_transaction(&blk) if info.respond_to?(:synchronization_transaction)
+
+        blk.call
+      end
+
       def synchronization_page_update!(page)
         info.update! synchronization_page: page
       end
@@ -78,7 +85,7 @@ module Artery
 
             objects = data[:objects].map(&:with_indifferent_access)
 
-            handler.call(:synchronization, objects, page)
+            synchronization_transaction { handler.call(:synchronization, objects, page) }
 
             if synchronization_per_page && objects.count.positive?
               synchronization_page_update!(page)
@@ -129,12 +136,15 @@ module Artery
             Artery.logger.debug "HEY-HEY, LAST_UPDATES: <#{updates_uri.to_route}> #{[data].inspect}"
 
             updates = data[:updates].map(&:with_indifferent_access)
-            updates.sort_by { |u| u[:_index] }.each do |update|
-              from = Routing.uri(service: uri.service, model: uri.model, action: update.delete(:action)).to_route
-              handle(IncomingMessage.new(self, update, nil, from, from_updates: true))
+            synchronization_transaction do
+              updates.sort_by { |u| u[:_index] }.each do |update|
+                from = Routing.uri(service: uri.service, model: uri.model, action: update.delete(:action)).to_route
+                handle(IncomingMessage.new(self, update, nil, from, from_updates: true))
+              end
+
+              update_info_by_message! IncomingMessage.new(self, data, nil, updates_uri.to_route)
             end
 
-            update_info_by_message! IncomingMessage.new(self, data, nil, updates_uri.to_route)
             if data[:_continue]
               Artery.logger.debug "NOT ALL UPDATES RECEIVED, CONTINUE..."
 
