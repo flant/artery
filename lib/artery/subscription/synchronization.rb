@@ -21,6 +21,14 @@ module Artery
         options[:synchronize].is_a?(Hash) ? options[:synchronize][:per_page] : nil
       end
 
+      def synchronize_updates_scope
+        (options[:synchronize_updates].is_a?(Hash) && options[:synchronize_updates][:scope]) || synchronization_scope
+      end
+
+      def synchronize_updates_per_page
+        (options[:synchronize_updates].is_a?(Hash) && options[:synchronize_updates][:per_page]) || synchronization_per_page
+      end
+
       def synchronize_updates_autoenrich?
         options[:synchronize_updates].is_a?(Hash) ? options[:synchronize_updates][:autoenrich] : false
       end
@@ -127,8 +135,8 @@ module Artery
         if synchronize_updates_autoenrich?
            # we must setup per_page as data is autoenriched and can be big
           updates_data.merge! representation: representation_name,
-                              scope: synchronization_scope,
-                              per_page: synchronization_per_page
+                              scope: synchronize_updates_scope,
+                              per_page: synchronize_updates_per_page
         end
 
         Artery.request updates_uri.to_route, updates_data, sync_handler: true do |on|

@@ -5,7 +5,8 @@ module Artery
     module Subscriptions
       extend ActiveSupport::Concern
 
-      ARTERY_MAX_UPDATES_SYNC = 2000 # we should limit updates fetched at once
+      ARTERY_MAX_UPDATES_SYNC              = 2000 # we should limit updates fetched at once
+      ARTERY_MAX_AUTOENRICHED_UPDATES_SYNC = 500  # we should limit updates fetched at once
 
       included do
         artery_add_get_subscriptions if artery_source_model?
@@ -92,7 +93,8 @@ module Artery
             Artery.logger.info "HEY-HEY-HEY, message on GET_UPDATES with arguments: `#{[data, reply, sub].inspect}`!"
 
             index = data['after_index'].to_i
-            per_page = data['per_page'] || ARTERY_MAX_UPDATES_SYNC
+            autoenrich = data['representation'].present?
+            per_page = data['per_page'] || (autoenrich ? ARTERY_MAX_AUTOENRICHED_UPDATES_SYNC : ARTERY_MAX_UPDATES_SYNC)
 
             if index.positive?
               messages = Artery.message_class.after_index(artery_model_name, index).limit(per_page)
@@ -112,7 +114,7 @@ module Artery
             Artery.logger.info "MESSAGES: #{messages.inspect}"
 
             # Autoenrich data
-            if data['representation']
+            if autoenrich
               scope = "artery_#{data['scope'] || 'all'}"
               autoenrich_data = send(scope).artery_find_all(messages.map { |m| m.data['uuid'] }).map do |obj|
                 [obj.send(artery_uuid_attribute) , obj.to_artery(data['representation'])]
