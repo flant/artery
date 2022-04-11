@@ -74,6 +74,19 @@ module Artery
       def receive_all
         synchronization_in_progress! unless synchronization_in_progress?
 
+        while receive_all_once == :continue; end
+      end
+
+      def receive_updates
+        synchronization_in_progress!
+
+        while receive_updates_once == :continue; end
+      end
+
+      private
+
+      def receive_all_once
+        should_continue = false
         all_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_all)
 
         page = info.synchronization_page ? info.synchronization_page + 1 : 0 if synchronization_per_page
@@ -87,7 +100,7 @@ module Artery
           per_page: synchronization_per_page
         }
 
-        Artery.request all_uri.to_route, all_data do |on|
+        Artery.request all_uri.to_route, all_data, sync_handler: true do |on|
           on.success do |data|
             Artery.logger.debug "HEY-HEY, ALL OBJECTS: <#{all_uri.to_route}> #{[data].inspect}"
 
@@ -97,7 +110,8 @@ module Artery
 
             if synchronization_per_page && objects.count.positive?
               synchronization_page_update!(page)
-              receive_all
+              Artery.logger.debug "PAGE #{page} RECEIVED, WILL CONTINUE..."
+              should_continue = true
             else
               synchronization_page_update!(nil) if synchronization_per_page
               synchronization_in_progress!(false)
@@ -121,11 +135,11 @@ module Artery
             Artery.handle_error error
           end
         end
+        return :continue if should_continue
       end
 
-      def receive_updates
-        synchronization_in_progress!
-
+      def receive_updates_once
+        should_continue = false
         updates_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
         updates_data = {
           after_index: latest_message_index
@@ -154,9 +168,8 @@ module Artery
             end
 
             if data[:_continue]
-              Artery.logger.debug "NOT ALL UPDATES RECEIVED, CONTINUE..."
-
-              receive_updates
+              Artery.logger.debug "NOT ALL UPDATES RECEIVED, WILL CONTINUE..."
+              should_continue = true
             else
               synchronization_in_progress!(false)
             end
@@ -176,6 +189,7 @@ module Artery
             Artery.handle_error Error.new("Failed to get updates for #{uri.model} from #{uri.service}: #{e.message}", e.artery_context)
           end
         end
+        return :continue if should_continue
       end
       # rubocop:enable Metrics/AbcSize, Lint/RescueException, Metrics/MethodLength, Metrics/BlockLength
     end
