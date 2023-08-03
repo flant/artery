@@ -25,7 +25,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'multiblock',         '~> 0.2'
   s.add_dependency 'with_advisory_lock', '>= 4.0', '< 5.0'
 
-  s.add_dependency 'nats',         '>= 0.8', '< 0.11.1'
+  s.add_dependency 'nats',         '>= 0.8', '< 0.12'
   # s.add_dependency 'nats-pure',    '~> 0.5'
   s.add_dependency 'rails',        '>= 4.2', '< 7.1'
 end
