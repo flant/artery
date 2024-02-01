@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Artery
   module MessageModel
     extend ActiveSupport::Concern
@@ -6,7 +8,7 @@ module Artery
     end
 
     module ClassMethods
-      MAX_MESSAGE_AGE = ENV.fetch('ARTERY_MAX_MESSAGE_AGE') { '90' }.to_i.days
+      MAX_MESSAGE_AGE = ENV.fetch('ARTERY_MAX_MESSAGE_AGE', '90').to_i.days
 
       def after_index(model, index)
         raise NotImplementedError
@@ -45,7 +47,7 @@ module Artery
     protected
 
     def send_to_artery
-      Artery.publish route, to_artery.merge( '_previous_index' => previous_index)
+      Artery.publish route, to_artery.merge('_previous_index' => previous_index)
     end
   end
 end

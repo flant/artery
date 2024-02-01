@@ -4,6 +4,7 @@ module Artery
   class Subscription
     class IncomingMessage
       attr_accessor :data, :reply, :from, :from_uri, :subscription, :options
+
       def initialize(subscription, data, reply, from, **options)
         @subscription = subscription
         @data         = data
@@ -38,7 +39,7 @@ module Artery
         data[:updated_by_service].to_s == Artery.service_name.to_s
       end
 
-      def enrich_data
+      def enrich_data # rubocop:disable Metrics/AbcSize
         # NO enrich needed as we already have message with attributes
         if @attributes
           yield @attributes
@@ -57,15 +58,15 @@ module Artery
         Artery.request get_uri.to_route, get_data do |on|
           on.success do |attributes|
             yield attributes
-          rescue Exception => e
+          rescue Exception => e # rubocop:disable Lint/RescueException
             error = Error.new("Error in subscription handler: #{e.inspect}",
-              original_exception: e,
-              subscription: {
-                subscriber: subscription.subscriber.to_s,
-                data: data.to_json,
-                route: from,
-              },
-              request: { data: get_data.to_json, route: get_uri.to_route }, response: attributes.to_json)
+                              original_exception: e,
+                              subscription: {
+                                subscriber: subscription.subscriber.to_s,
+                                data: data.to_json,
+                                route: from
+                              },
+                              request: { data: get_data.to_json, route: get_uri.to_route }, response: attributes.to_json)
             Artery.handle_error error
           end
 
@@ -74,12 +75,11 @@ module Artery
               yield(:not_found)
             else
               error = Error.new("Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{e.message}",
-                e.artery_context.merge(subscription: {
-                  subscriber: subscription.subscriber.to_s,
-                  data: data.to_json,
-                  route: from_uri.to_route,
-                })
-              )
+                                e.artery_context.merge(subscription: {
+                                                         subscriber: subscription.subscriber.to_s,
+                                                         data: data.to_json,
+                                                         route: from_uri.to_route
+                                                       }))
               Artery.handle_error error
             end
           end

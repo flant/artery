@@ -16,7 +16,7 @@ module Artery
       field :data,    type: Hash,   required: true
       field :_index,  type: Integer, index: true
 
-      alias :index :_index
+      alias index _index
 
       after_save :send_to_artery
 
@@ -55,10 +55,8 @@ module Artery
 
       protected
 
-      def lock_on_model
-        ::NoBrainer::Lock.new("#{self.class.table_name}:#{model}").synchronize do
-          yield
-        end
+      def lock_on_model(&block)
+        ::NoBrainer::Lock.new("#{self.class.table_name}:#{model}").synchronize(&block)
       end
 
       def assign_index

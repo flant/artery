@@ -49,7 +49,7 @@ module Artery
       info.update! new_data
     end
 
-    def handle(message)
+    def handle(message) # rubocop:disable Metrics/AbcSize
       Artery.logger.debug "GOT MESSAGE: #{message.inspect}"
 
       info.lock_for_message(message) do
