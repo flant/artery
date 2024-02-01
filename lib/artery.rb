@@ -7,7 +7,6 @@ require 'artery/backends/base'
 
 require 'multiblock'
 require 'multiblock_has_block'
-require 'with_advisory_lock'
 
 module Artery
   autoload :Config,        'artery/config'
@@ -42,6 +41,7 @@ module Artery
 
   class << self
     attr_accessor :worker
+
     def handle_signals
       %w[TERM INT].each do |sig|
         trap(sig) do

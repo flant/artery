@@ -34,7 +34,7 @@ module Artery
       def with_lock
         was_locked = @lock.present?
 
-        if (was_locked) # only 'indexed' messages should lock
+        if was_locked # only 'indexed' messages should lock
           yield
         else
           Artery.logger.debug "WAITING FOR LOCK... [LATEST_INDEX: #{latest_index}]"

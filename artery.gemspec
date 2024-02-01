@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-$LOAD_PATH.push File.expand_path('../lib', __FILE__)
+$LOAD_PATH.push File.expand_path('lib', __dir__)
 
 # Maintain your gem's version:
 require 'artery/version'
@@ -22,8 +22,7 @@ Gem::Specification.new do |s|
 
   s.required_ruby_version = '>= 2.5'
 
-  s.add_dependency 'multiblock',         '~> 0.2'
-  s.add_dependency 'with_advisory_lock', '>= 4.0', '< 5.0'
+  s.add_dependency 'multiblock', '~> 0.2'
 
   s.add_dependency 'nats',         '>= 0.8', '< 0.12'
   # s.add_dependency 'nats-pure',    '~> 0.5'
