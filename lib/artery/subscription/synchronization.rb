@@ -5,6 +5,9 @@ module Artery
     module Synchronization
       extend ActiveSupport::Concern
 
+      ALIVE_EDGE = 2.minutes
+      HEARTBEAT_INTERVAL = 30.seconds
+
       def synchronize?
         options[:synchronize]
       end
@@ -34,17 +37,25 @@ module Artery
       end
 
       def synchronization_in_progress?
-        info.synchronization_in_progress?
+        info.synchronization_in_progress? && synchronization_alive?
+      end
+
+      def synchronization_alive?
+        info.synchronization_heartbeat.blank? || (Time.zone.now - info.synchronization_heartbeat) < ALIVE_EDGE
       end
 
       def synchronization_in_progress!(val = true)
         if val
           Artery.synchronizing_subscriptions << self
+          run_synchronization_heartbeat
+
+          info.update! synchronization_in_progress: true, synchronization_heartbeat: Time.zone.now
         else
           Artery.synchronizing_subscriptions.delete self
-        end
+          stop_synchronization_heartbeat
 
-        info.update! synchronization_in_progress: val
+          info.update! synchronization_in_progress: false, synchronization_heartbeat: nil
+        end
       end
 
       def synchronization_transaction(&blk)
@@ -59,9 +70,7 @@ module Artery
       end
 
       def synchronize!
-        # TODO: implement this carefully
         return if uri.service == Artery.service_name || synchronization_in_progress?
-
 
         if !new? && synchronize_updates?
           receive_updates
@@ -70,22 +79,41 @@ module Artery
         end
       end
 
-      # rubocop:disable Metrics/AbcSize, Lint/RescueException, Metrics/MethodLength, Metrics/BlockLength
       def receive_all
         synchronization_in_progress! unless synchronization_in_progress?
 
-        while receive_all_once == :continue; end
+        Fiber.new do # all requests insuide must be synchronous
+          while receive_all_once == :continue; end
+        end.resume
       end
 
       def receive_updates
         synchronization_in_progress!
 
-        while receive_updates_once == :continue; end
+        Fiber.new do # all requests insuide must be synchronous
+          while receive_updates_once == :continue; end
+        end.resume
       end
 
       private
 
-      def receive_all_once
+      def run_synchronization_heartbeat
+        return if @heartbeat_thread
+
+        @heartbeat_thread = Thread.new do
+          while @heartbeat_thread
+            sleep HEARTBEAT_INTERVAL
+
+            info.update! synchronization_heartbeat: Time.zone.now
+          end
+        end
+      end
+
+      def stop_synchronization_heartbeat
+        @heartbeat_thread&.exit
+      end
+
+      def receive_all_once # rubocop:disable Metrics/AbcSize, Lint/RescueException, Metrics/MethodLength, Metrics/BlockLength
         should_continue = false
         all_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_all)
 
@@ -100,7 +128,7 @@ module Artery
           per_page: synchronization_per_page
         }
 
-        Artery.request all_uri.to_route, all_data, sync_handler: true do |on|
+        Artery.request all_uri.to_route, all_data  do |on|
           on.success do |data|
             Artery.logger.debug "HEY-HEY, ALL OBJECTS: <#{all_uri.to_route}> #{[data].inspect}"
 
@@ -138,7 +166,7 @@ module Artery
         return :continue if should_continue
       end
 
-      def receive_updates_once
+      def receive_updates_once # rubocop:disable Metrics/AbcSize, Lint/RescueException, Metrics/MethodLength, Metrics/BlockLength
         should_continue = false
         updates_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
         updates_data = {
@@ -153,7 +181,7 @@ module Artery
                               per_page: synchronize_updates_per_page
         end
 
-        Artery.request updates_uri.to_route, updates_data, sync_handler: true do |on|
+        Artery.request updates_uri.to_route, updates_data do |on|
           on.success do |data|
             Artery.logger.debug "HEY-HEY, LAST_UPDATES: <#{updates_uri.to_route}> #{[data].inspect}"
 
@@ -191,7 +219,6 @@ module Artery
         end
         return :continue if should_continue
       end
-      # rubocop:enable Metrics/AbcSize, Lint/RescueException, Metrics/MethodLength, Metrics/BlockLength
     end
   end
 end

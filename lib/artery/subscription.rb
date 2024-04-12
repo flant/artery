@@ -50,6 +50,7 @@ module Artery
     end
 
     def handle(message) # rubocop:disable Metrics/AbcSize
+      Artery.logger.push_tags message.reply
       Artery.logger.debug "GOT MESSAGE: #{message.inspect}"
 
       info.lock_for_message(message) do
@@ -80,6 +81,8 @@ module Artery
           handle_data(message)
         end
       end
+    ensure
+      Artery.logger.pop_tags
     end
 
     protected

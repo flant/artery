@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 module Artery
-  autoload :Subscription, 'artery/subscription'
+  autoload :Subscription,        'artery/subscription'
+  autoload :HealthzSubscription, 'artery/healthz_subscription'
 
   module Subscriptions
     extend ActiveSupport::Concern
