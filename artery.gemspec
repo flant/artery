@@ -26,5 +26,5 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'nats',         '>= 0.8', '< 0.12'
   # s.add_dependency 'nats-pure',    '~> 0.5'
-  s.add_dependency 'rails',        '>= 4.2', '< 7.1'
+  s.add_dependency 'rails',        '>= 4.2', '< 8'
 end

@@ -14,6 +14,7 @@ module Artery
       field :latest_index, type: Integer
 
       field :synchronization_in_progress, type: Boolean, required: true, default: false
+      field :synchronization_heartbeat,   type: Time,    required: false
       field :synchronization_page,        type: Integer, required: false
 
       class << self

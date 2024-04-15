@@ -4,17 +4,18 @@ module Artery
   class Worker
     class Error < Artery::Error; end
 
-    def subscribe_healthz
-      healthz_route = "#{Artery.service_name}.worker.healthz"
-      Artery.logger.debug "Subscribing on '#{healthz_route}'"
+    attr_reader :worker_id
+    def initialize
+      @worker_id = SecureRandom.hex
 
-      Artery.subscribe healthz_route do |_data, reply, _from|
-        Artery.publish reply, status: :ok
-      end
+      Artery.logger.push_tags worker_id
     end
 
-    # rubocop:disable Metrics/AbcSize, Lint/RescueException, Metrics/BlockLength
-    def run(services = nil)
+    def subscribe_healthz
+      HealthzSubscription.new(worker_id, 'worker').subscribe
+    end
+
+    def run(services = nil) # rubocop:disable Metrics/AbcSize, Lint/RescueException, Metrics/BlockLength
       services = Array.wrap(services).map(&:to_sym)
       subscriptions_on_services = services.blank? ? Artery.subscriptions : Artery.subscriptions_on(services)
 
@@ -25,12 +26,14 @@ module Artery
 
       Artery.handle_signals
 
-      @sync = Artery::Sync.new
+      @sync = Artery::Sync.new worker_id
 
       Artery.worker = self
       Artery.start do
+        Artery.logger.push_tags 'Worker', worker_id
         tries = 0
         begin
+
           subscribe_healthz
 
           @sync.execute services
@@ -65,6 +68,5 @@ module Artery
     ensure
       Artery.clear_synchronizing_subscriptions!
     end
-    # rubocop:enable Metrics/AbcSize, Lint/RescueException, Metrics/BlockLength
   end
 end

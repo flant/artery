@@ -10,7 +10,6 @@ require 'multiblock_has_block'
 
 module Artery
   autoload :Config,        'artery/config'
-  autoload :LoggerProxy,   'artery/logger_proxy'
   autoload :Worker,        'artery/worker'
   autoload :Sync,          'artery/sync'
   autoload :Model,         'artery/model'

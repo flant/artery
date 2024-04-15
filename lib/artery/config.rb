@@ -4,11 +4,10 @@ module Artery
   module Config
     extend ActiveSupport::Concern
 
-    # rubocop:disable Metrics/BlockLength
-    included do
+    included do # rubocop:disable Metrics/BlockLength
       class << self
         attr_accessor :message_class, :subscription_info_class, :service_name, :backend_config, :request_timeout,
-                      :error_handler, :logger
+                      :error_handler
 
         # Ability to redefine message class (for example, for non-activerecord applications)
         def message_class
@@ -24,7 +23,13 @@ module Artery
         end
 
         def logger
-          @logger ||= LoggerProxy.new(defined?(Rails) ? Rails.logger : Logger.new(STDOUT), tags: %w[Artery])
+          @logger || (self.logger = defined?(Rails) ? Rails.logger : Logger.new(STDOUT))
+        end
+
+        def logger=(logger)
+          @logger = ActiveSupport::TaggedLogging.new(logger)
+          @logger.push_tags 'Artery'
+          @logger
         end
 
         def request_timeout
@@ -58,7 +63,6 @@ module Artery
         end
       end
     end
-    # rubocop:enable Metrics/BlockLength
 
     module ClassMethods
       def configure
