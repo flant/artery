@@ -7,7 +7,7 @@ module Artery
 
       self.table_name = 'artery_messages'
 
-      serialize :data, JSON
+      serialize :data, coder: JSON
 
       after_commit :send_to_artery, on: :create
 
