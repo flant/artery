@@ -51,7 +51,7 @@ module Artery
           artery_add_subscription Routing.uri(service: service, model: model, action: action), kwargs, &blk
         end
 
-        # rubocop:disable Metrics/AbcSize
+        # rubocop:disable Metrics/AbcSize,Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
         def artery_add_get_subscriptions
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get) do |data, reply, sub|
             Artery.logger.info "HEY-HEY-HEY, message on GET with arguments: `#{[data, reply, sub].inspect}`!"
@@ -105,8 +105,8 @@ module Artery
 
             # Deduplicate
             messages = messages.to_a.group_by { |m| [m.action, m.data] }.values
-                                    .map { |mm| mm.sort_by { |m| m.index.to_i }.last }
-                                    .sort_by { |m| m.index.to_i }
+                               .map { |mm| mm.sort_by { |m| m.index.to_i }.last }
+                               .sort_by { |m| m.index.to_i }
 
             latest_index = Artery.message_class.latest_index(artery_model_name)
             updates_latest_index = messages.last&.index || latest_index
@@ -117,7 +117,7 @@ module Artery
             if autoenrich
               scope = "artery_#{data['scope'] || 'all'}"
               autoenrich_data = send(scope).artery_find_all(messages.map { |m| m.data['uuid'] }).map do |obj|
-                [obj.send(artery_uuid_attribute) , obj.to_artery(data['representation'])]
+                [obj.send(artery_uuid_attribute), obj.to_artery(data['representation'])]
               end.to_h
             end
 
@@ -135,7 +135,7 @@ module Artery
                                   _index: updates_latest_index, _continue: updates_latest_index < latest_index)
           end
         end
-        # rubocop:enable Metrics/AbcSize
+        # rubocop:enable Metrics/AbcSize,Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
       end
 
       def artery_updated_by!(service)

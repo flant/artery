@@ -5,6 +5,7 @@ module Artery
     class Error < Artery::Error; end
 
     attr_reader :worker_id
+
     def initialize
       @worker_id = SecureRandom.hex
 
@@ -15,7 +16,7 @@ module Artery
       HealthzSubscription.new(worker_id, 'worker').subscribe
     end
 
-    def run(services = nil) # rubocop:disable Metrics/AbcSize, Lint/RescueException, Metrics/BlockLength
+    def run(services = nil) # rubocop:disable Metrics/AbcSize
       services = Array.wrap(services).map(&:to_sym)
       subscriptions_on_services = services.blank? ? Artery.subscriptions : Artery.subscriptions_on(services)
 
@@ -33,7 +34,6 @@ module Artery
         Artery.logger.push_tags 'Worker', worker_id
         tries = 0
         begin
-
           subscribe_healthz
 
           @sync.execute services

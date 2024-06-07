@@ -16,15 +16,13 @@ module Artery
         end
       end
 
-      def synchronization_transaction
-        with_lock do
-          yield
-        end
+      def synchronization_transaction(&block)
+        with_lock(&block)
       end
 
       def with_lock
         self.class.transaction do
-          if !(was_locked = @locked) # prevent double lock to reduce selects
+          unless (was_locked = @locked) # prevent double lock to reduce selects
             Artery.logger.debug "WAITING FOR LOCK...  [LATEST_INDEX: #{latest_index}]"
 
             reload lock: true # explicitely reload record

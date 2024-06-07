@@ -23,7 +23,7 @@ module Artery
         end
 
         def logger
-          @logger || (self.logger = defined?(Rails) ? Rails.logger : Logger.new(STDOUT))
+          @logger || (self.logger = defined?(Rails) ? Rails.logger : Logger.new($stdout))
         end
 
         def logger=(logger)
@@ -33,7 +33,7 @@ module Artery
         end
 
         def request_timeout
-          @request_timeout || ENV.fetch('ARTERY_REQUEST_TIMEOUT') { '15' }.to_i
+          @request_timeout || ENV.fetch('ARTERY_REQUEST_TIMEOUT', '15').to_i
         end
 
         def error_handler
@@ -42,11 +42,11 @@ module Artery
 
         def backend_config
           @backend_config ||= {
-            servers:            ENV.fetch('ARTERY_SERVERS')            { '' }.split(','),
-            user:               ENV.fetch('ARTERY_USER')               { nil },
-            password:           ENV.fetch('ARTERY_PASSWORD')           { nil },
-            reconnect_timeout:  ENV.fetch('ARTERY_RECONNECT_TIMEOUT')  { '1' }.to_i,
-            reconnect_attempts: ENV.fetch('ARTERY_RECONNECT_ATTEMPTS') { '10' }.to_i
+            servers: ENV.fetch('ARTERY_SERVERS', '').split(','),
+            user: ENV.fetch('ARTERY_USER', nil),
+            password: ENV.fetch('ARTERY_PASSWORD', nil),
+            reconnect_timeout: ENV.fetch('ARTERY_RECONNECT_TIMEOUT', '1').to_i,
+            reconnect_attempts: ENV.fetch('ARTERY_RECONNECT_ATTEMPTS', '10').to_i
           }
         end
 

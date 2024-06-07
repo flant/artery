@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require 'artery/engine' if defined?(Rails)
+require_relative 'artery/engine' if defined?(Rails)
 
-require 'artery/errors'
-require 'artery/backends/base'
+require_relative 'artery/errors'
+require_relative 'artery/backends/base'
 
 require 'multiblock'
-require 'multiblock_has_block'
+require_relative 'multiblock_has_block'
 
 module Artery
   autoload :Config,        'artery/config'

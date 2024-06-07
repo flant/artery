@@ -8,4 +8,4 @@ module Multiblock
   end
 end
 
-Multiblock::Wrapper.send(:include, Multiblock::HasBlock)
+Multiblock::Wrapper.include Multiblock::HasBlock
