@@ -4,7 +4,6 @@
 module Artery
   module Backends
     class Fake < Base
-
       def start(*_args); end
 
       def connect(*_args); end

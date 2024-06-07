@@ -113,7 +113,7 @@ module Artery
         @heartbeat_thread&.exit
       end
 
-      def receive_all_once # rubocop:disable Metrics/AbcSize, Lint/RescueException, Metrics/MethodLength, Metrics/BlockLength
+      def receive_all_once # rubocop:disable Metrics/AbcSize
         should_continue = false
         all_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_all)
 
@@ -128,7 +128,7 @@ module Artery
           per_page: synchronization_per_page
         }
 
-        Artery.request all_uri.to_route, all_data  do |on|
+        Artery.request all_uri.to_route, all_data do |on|
           on.success do |data|
             Artery.logger.debug "HEY-HEY, ALL OBJECTS: <#{all_uri.to_route}> #{[data].inspect}"
 
@@ -159,14 +159,14 @@ module Artery
           on.error do |e|
             synchronization_in_progress!(false)
             error = Error.new "Failed to get all objects #{uri.model} from #{uri.service} with scope='#{synchronization_scope}': "\
-                              "#{e.message}", e.artery_context
+                              "#{e.message}", **e.artery_context
             Artery.handle_error error
           end
         end
-        return :continue if should_continue
+        :continue if should_continue
       end
 
-      def receive_updates_once # rubocop:disable Metrics/AbcSize, Lint/RescueException, Metrics/MethodLength, Metrics/BlockLength
+      def receive_updates_once # rubocop:disable Metrics/AbcSize
         should_continue = false
         updates_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
         updates_data = {
@@ -175,7 +175,7 @@ module Artery
 
         # Configurable autoenrich updates
         if synchronize_updates_autoenrich?
-           # we must setup per_page as data is autoenriched and can be big
+          # we must setup per_page as data is autoenriched and can be big
           updates_data.merge! representation: representation_name,
                               scope: synchronize_updates_scope,
                               per_page: synchronize_updates_per_page
@@ -196,7 +196,7 @@ module Artery
             end
 
             if data[:_continue]
-              Artery.logger.debug "NOT ALL UPDATES RECEIVED, WILL CONTINUE..."
+              Artery.logger.debug 'NOT ALL UPDATES RECEIVED, WILL CONTINUE...'
               should_continue = true
             else
               synchronization_in_progress!(false)
@@ -214,10 +214,10 @@ module Artery
 
           on.error do |e|
             synchronization_in_progress!(false)
-            Artery.handle_error Error.new("Failed to get updates for #{uri.model} from #{uri.service}: #{e.message}", e.artery_context)
+            Artery.handle_error Error.new("Failed to get updates for #{uri.model} from #{uri.service}: #{e.message}", **e.artery_context)
           end
         end
-        return :continue if should_continue
+        :continue if should_continue
       end
     end
   end

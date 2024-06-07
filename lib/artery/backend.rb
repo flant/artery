@@ -39,20 +39,19 @@ module Artery
     module ClassMethods
       def subscribe(route, options = {})
         backend.subscribe(route, options) do |json, reply, from|
-          begin
-            json = '{}' if json.blank?
+          json = '{}' if json.blank?
 
-            yield(JSON.parse(json).with_indifferent_access, reply, from)
-          rescue JSON::ParserError => e
-            Artery.handle_error FormatError.new(Routing.uri(from), json, original_exception: e,
-                                                                         subscription: { route: from, data: json })
-          end
+          yield(JSON.parse(json).with_indifferent_access, reply, from)
+        rescue JSON::ParserError => e
+          Artery.handle_error FormatError.new(Routing.uri(from), json, original_exception: e,
+                                                                       subscription: { route: from, data: json })
         end
       end
 
       # rubocop:disable Metrics/AbcSize
       def request(route, data = nil, options = {})
         raise ArgumentError, 'You must provide block to handle response' unless block_given?
+
         handler = Multiblock.wrapper
         uri = Routing.uri(route)
 

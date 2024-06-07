@@ -10,9 +10,9 @@ module Artery
     attr_accessor :uri, :subscriber, :handler, :options
 
     DEFAULTS = {
-      synchronize:         false,
+      synchronize: false,
       synchronize_updates: true,
-      representation:      Artery.service_name
+      representation: Artery.service_name
     }.freeze
 
     def initialize(model, uri, handler:, **options)

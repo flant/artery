@@ -4,6 +4,7 @@ module Artery
   module Backends
     class Base
       attr_accessor :config
+
       def initialize(config = {})
         @config = config
       end

@@ -49,7 +49,7 @@ module Artery
   # ErrorHandler
   class ErrorHandler
     def self.handle(exception)
-      Artery.logger.error exception.message + "\n" + exception.backtrace.join("\n")
+      Artery.logger.error "#{exception.message}\n#{exception.backtrace.join("\n")}"
     end
   end
 
@@ -68,7 +68,9 @@ module Artery
     end
   end
 
-  module_function def handle_error(exception)
+  module_function
+
+  def handle_error(exception)
     Artery.error_handler.handle exception
   end
 end

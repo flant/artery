@@ -3,6 +3,7 @@
 module Artery
   class Sync
     attr_accessor :sync_id
+
     def initialize(sync_id)
       @sync_id = sync_id
     end

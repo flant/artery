@@ -4,6 +4,7 @@ module Artery
   module Routing
     class URI
       attr_accessor :service, :model, :action, :plural
+
       def initialize(arg)
         case arg
         when URI
