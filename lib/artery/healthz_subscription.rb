@@ -2,20 +2,11 @@
 
 module Artery
   class HealthzSubscription
-    attr_reader :id, :name
-
-    def initialize(id, name)
-      @id = id
-      @name = name
-    end
-
     def subscribe
-      healthz_route = "#{Artery.service_name}.#{name}.healthz"
-      Artery.logger.debug "Subscribing on '#{healthz_route}' for #{name} #{id}"
+      healthz_route = "#{Artery.service_name}.healthz.check"
+      Artery.logger.debug "Subscribing on '#{healthz_route}'"
 
-      Artery.subscribe healthz_route do |data, reply, _from|
-        next unless data['id'] == id
-
+      Artery.subscribe healthz_route, queue: "#{Artery.service_name}.healthz.check" do |_data, reply, _from|
         Artery.publish reply, status: :ok
       end
     end
