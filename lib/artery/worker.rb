@@ -13,7 +13,8 @@ module Artery
     end
 
     def subscribe_healthz
-      HealthzSubscription.new(worker_id, 'worker').subscribe
+      HealthzSubscription.new.subscribe
+      WorkerHealthzSubscription.new(worker_id, 'worker').subscribe
     end
 
     def run(services = nil) # rubocop:disable Metrics/AbcSize
