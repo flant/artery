@@ -3,6 +3,7 @@
 module Artery
   autoload :Subscription,        'artery/subscription'
   autoload :HealthzSubscription, 'artery/healthz_subscription'
+  autoload :WorkerHealthzSubscription, 'artery/worker_healthz_subscription'
 
   module Subscriptions
     extend ActiveSupport::Concern
