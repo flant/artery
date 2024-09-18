@@ -17,7 +17,7 @@ module Artery
         return
       end
 
-      @sync_fiber = Fiber.new do # all synchroniza tion inside must be synchronous
+      @sync_fiber = Fiber.new do # all synchronization inside must be synchronous
         subscriptions_on_services.values.flatten.uniq.each(&:synchronize!)
       end
       @sync_fiber.resume
