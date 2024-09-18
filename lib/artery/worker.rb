@@ -17,7 +17,7 @@ module Artery
       WorkerHealthzSubscription.new(worker_id, 'worker').subscribe
     end
 
-    def run(services = nil) # rubocop:disable Metrics/AbcSize
+    def run(services = nil)
       services = Array.wrap(services).map(&:to_sym)
       subscriptions_on_services = services.blank? ? Artery.subscriptions : Artery.subscriptions_on(services)
 

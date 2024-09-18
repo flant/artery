@@ -82,17 +82,13 @@ module Artery
       def receive_all
         synchronization_in_progress! unless synchronization_in_progress?
 
-        Fiber.new do # all requests insuide must be synchronous
-          while receive_all_once == :continue; end
-        end.resume
+        while receive_all_once == :continue; end
       end
 
       def receive_updates
         synchronization_in_progress!
 
-        Fiber.new do # all requests insuide must be synchronous
-          while receive_updates_once == :continue; end
-        end.resume
+        while receive_updates_once == :continue; end
       end
 
       private
