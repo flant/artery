@@ -18,11 +18,10 @@ Gem::Specification.new do |s|
   s.bindir      = 'exe'
   s.executables = s.files.grep(%r{^exe/}) { |f| File.basename(f) }
 
-  s.required_ruby_version = '>= 2.5'
+  s.required_ruby_version = '>= 2.7'
 
   s.add_dependency 'multiblock', '~> 0.2'
 
-  s.add_dependency 'nats',         '>= 0.8', '< 0.12'
-  # s.add_dependency 'nats-pure',    '~> 0.5'
+  s.add_dependency 'nats-pure',    '~> 2.0', '< 3'
   s.add_dependency 'rails',        '>= 4.2', '< 8'
 end

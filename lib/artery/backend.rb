@@ -42,9 +42,9 @@ module Artery
           json = '{}' if json.blank?
 
           yield(JSON.parse(json).with_indifferent_access, reply, from)
-        rescue JSON::ParserError => e
-          Artery.handle_error FormatError.new(Routing.uri(from), json, original_exception: e,
-                                                                       subscription: { route: from, data: json })
+        rescue StandardError => e
+          Artery.handle_error FormatError.new(from, json, original_exception: e,
+                                                          subscription: { route: from, data: json })
         end
       end
 

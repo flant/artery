@@ -53,8 +53,8 @@ module Artery
     end
   end
 
-  if defined?(Raven)
-    class RavenErrorHandler < ErrorHandler
+  if defined?(Sentry)
+    class SentryErrorHandler < ErrorHandler
       def self.handle(exception)
         super
 
@@ -63,7 +63,7 @@ module Artery
         }
         options[:extra][:artery] = exception.artery_context if exception.respond_to?(:artery_context)
 
-        Raven.capture_exception(exception, options)
+        Sentry.capture_exception(exception, **options)
       end
     end
   end

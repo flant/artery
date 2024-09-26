@@ -1,37 +1,43 @@
 # frozen_string_literal: true
 
-require 'nats/io/client'
+require 'nats/client'
 
 module Artery
   module Backends
     class NATSPure < Base
-      attr_accessor :client
-
       def client
-        @client ||= connect
+        @client || connect
       end
 
-      delegate :connected?, :connecting?, to: :client
+      delegate :connected?, :connecting?, :subscribe, to: :client
 
       def connect
-        c = ::NATS::IO::Client.new
-        c.connect(options)
-        Artery.logger.debug "Connected to #{c.connected_server}"
-        c
+        @client ||= ::NATS.connect(options)
+        Artery.logger.debug "Connected to #{@client.connected_server}"
+        @client.connect unless @client.connected?
+        @client
       end
 
       def stop
         client.close
+        @stop = true
       end
 
-      # subscribe, unsubscribe, start not implemented, should use this backend ONLY for synchronous requests
+      def start
+        @stop = false
+        connect
+
+        yield
+
+        sleep 0.1 until @stop
+      end
 
       def request(route, data, opts = {}, &blk)
         opts[:timeout] ||= Artery.request_timeout
         # Always synchronous for now
-        response = client.request route, data, opts
+        response = client.request route, data, **opts
         yield response.data
-      rescue ::NATS::IO::Timeout
+      rescue ::NATS::Timeout
         yield(TimeoutError.new(request: { route: route, data: data }))
       end
 

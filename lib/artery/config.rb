@@ -37,7 +37,7 @@ module Artery
         end
 
         def error_handler
-          @error_handler || (defined?(Artery::RavenErrorHandler) ? Artery::RavenErrorHandler : Artery::ErrorHandler)
+          @error_handler || (defined?(Artery::SentryErrorHandler) ? Artery::SentryErrorHandler : Artery::ErrorHandler)
         end
 
         def backend_config
