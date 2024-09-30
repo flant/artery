@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-describe 'NATSPure Backend' do
+describe Artery::Backends::NATSPure do
   before do
     Artery.use_backend :nats_pure
   end
 
   it 'initializes backend' do
-    expect(Artery.backend).to be_a Artery::Backends::NATSPure
+    expect(Artery.backend).to be_a described_class
   end
 
   it 'connects' do
@@ -55,8 +55,6 @@ describe 'NATSPure Backend' do
         result = resp['square']
       end
     end
-
-    sleep 0.1
 
     expect(result).to eq(5**2)
   end

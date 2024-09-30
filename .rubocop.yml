@@ -20,11 +20,6 @@ Metrics/AbcSize:
 Metrics/MethodLength:
   Max: 45
 
-Metrics/BlockLength:
-  Max: 30
-  Exclude:
-    - 'spec/**/*'
-
 Metrics/ModuleLength:
   Max: 200
 
@@ -42,3 +37,9 @@ Style/Documentation:
 
 Naming/PredicateName:
   Enabled: false
+
+RSpec/MultipleExpectations:
+  Max: 3
+
+RSpec/ExampleLength:
+  Max: 20

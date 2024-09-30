@@ -14,10 +14,12 @@ gemspec
 # gem 'byebug', group: [:development, :test]
 
 gem 'sqlite3'
-gem 'rubocop'
-gem 'rspec-rails'
 
 gem 'rubocop'
 gem 'rubocop-rspec'
 gem 'rubocop-rspec_rails'
 gem 'overcommit'
+
+gem 'faker'
+gem 'rspec-rails'
+gem 'factory_bot_rails'
