@@ -14,7 +14,7 @@ module Artery
 
       def publish(*_args); end
 
-      def request(route, data, opts = {})
+      def request(_route, _data, _opts = {})
         yield if block_given?
       end
 

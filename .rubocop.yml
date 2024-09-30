@@ -1,18 +1,18 @@
 inherit_from: .rubocop_todo.yml
+require:
+  - rubocop-rspec
+  - rubocop-rspec_rails
 
 AllCops:
   TargetRubyVersion: 2.7
   NewCops: enable
-  Include:
-    - '**/Rakefile'
-    - '**/config.ru'
   Exclude:
     - 'db/**/*'
     - '**/Gemfile'
     - 'spec/dummy/**/*'
 
-Metrics/LineLength:
-  Max: 140
+Layout/LineLength:
+  Max: 120
 
 Metrics/AbcSize:
   Max: 30

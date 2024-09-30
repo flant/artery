@@ -29,7 +29,6 @@ module Artery
         def logger=(logger)
           @logger = ActiveSupport::TaggedLogging.new(logger)
           @logger.push_tags 'Artery'
-          @logger
         end
 
         def request_timeout

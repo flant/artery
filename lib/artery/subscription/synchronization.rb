@@ -154,7 +154,7 @@ module Artery
 
           on.error do |e|
             synchronization_in_progress!(false)
-            error = Error.new "Failed to get all objects #{uri.model} from #{uri.service} with scope='#{synchronization_scope}': "\
+            error = Error.new "Failed to get all objects #{uri.model} from #{uri.service} with scope='#{synchronization_scope}': " \
                               "#{e.message}", **e.artery_context
             Artery.handle_error error
           end
@@ -210,7 +210,8 @@ module Artery
 
           on.error do |e|
             synchronization_in_progress!(false)
-            Artery.handle_error Error.new("Failed to get updates for #{uri.model} from #{uri.service}: #{e.message}", **e.artery_context)
+            Artery.handle_error Error.new("Failed to get updates for #{uri.model} from #{uri.service}: #{e.message}",
+                                          **e.artery_context)
           end
         end
         :continue if should_continue

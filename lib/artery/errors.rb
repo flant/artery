@@ -5,7 +5,7 @@ module Artery
     attr_accessor :artery_context
 
     def initialize(message = nil, **context)
-      super message
+      super(message)
 
       @original_exception = context.delete(:original_exception)
       @artery_context = context
@@ -21,7 +21,7 @@ module Artery
       @uri = uri
       @response = response || {}
 
-      super nil, **context
+      super(nil, **context)
     end
 
     def message
@@ -38,7 +38,7 @@ module Artery
       @route = route
       @msg = msg
 
-      super nil, **context
+      super(nil, **context)
     end
 
     def message

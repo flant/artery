@@ -12,9 +12,26 @@ module Artery
       delegate :connected?, :connecting?, :subscribe, to: :client
 
       def connect
-        @client ||= ::NATS.connect(options)
+        @client ||= begin
+          client = ::NATS.connect(options)
+
+          client.on_reconnect do
+            Artery.logger.debug "Reconnected to server at #{client.connected_server}"
+          end
+
+          client.on_disconnect do
+            Artery.logger.debug 'Disconnected!'
+          end
+
+          client.on_close do
+            Artery.logger.debug 'Connection to NATS closed'
+          end
+          client
+        end
+
         Artery.logger.debug "Connected to #{@client.connected_server}"
         @client.connect unless @client.connected?
+
         @client
       end
 
@@ -32,7 +49,7 @@ module Artery
         sleep 0.1 until @stop
       end
 
-      def request(route, data, opts = {}, &blk)
+      def request(route, data, opts = {})
         opts[:timeout] ||= Artery.request_timeout
         # Always synchronous for now
         response = client.request route, data, **opts

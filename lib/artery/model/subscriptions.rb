@@ -89,7 +89,8 @@ module Artery
             Artery.publish(reply, data)
           end
 
-          artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_updates) do |data, reply, sub|
+          artery_add_subscription Routing.uri(model: artery_model_name_plural,
+                                              action: :get_updates) do |data, reply, sub|
             Artery.logger.info "HEY-HEY-HEY, message on GET_UPDATES with arguments: `#{[data, reply, sub].inspect}`!"
 
             index = data['after_index'].to_i
@@ -105,7 +106,7 @@ module Artery
 
             # Deduplicate
             messages = messages.to_a.group_by { |m| [m.action, m.data] }.values
-                               .map { |mm| mm.sort_by { |m| m.index.to_i }.last }
+                               .map { |mm| mm.max_by { |m| m.index.to_i } }
                                .sort_by { |m| m.index.to_i }
 
             latest_index = Artery.message_class.latest_index(artery_model_name)
@@ -116,9 +117,9 @@ module Artery
             # Autoenrich data
             if autoenrich
               scope = "artery_#{data['scope'] || 'all'}"
-              autoenrich_data = send(scope).artery_find_all(messages.map { |m| m.data['uuid'] }).map do |obj|
+              autoenrich_data = send(scope).artery_find_all(messages.map { |m| m.data['uuid'] }).to_h do |obj|
                 [obj.send(artery_uuid_attribute), obj.to_artery(data['representation'])]
-              end.to_h
+              end
             end
 
             updates = messages.map do |message|

@@ -18,4 +18,6 @@ gem 'rubocop'
 gem 'rspec-rails'
 
 gem 'rubocop'
+gem 'rubocop-rspec'
+gem 'rubocop-rspec_rails'
 gem 'overcommit'

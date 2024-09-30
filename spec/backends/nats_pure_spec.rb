@@ -1,7 +1,7 @@
-require 'spec_helper'
+# frozen_string_literal: true
 
 describe 'NATSPure Backend' do
-  before(:each) do
+  before do
     Artery.use_backend :nats_pure
   end
 
@@ -50,7 +50,11 @@ describe 'NATSPure Backend' do
     end
 
     result = nil
-    Artery.request('hello.world.square', { num: 5 }, timeout: 0.5) { |on| on.success { |resp| result = resp['square'] } }
+    Artery.request('hello.world.square', { num: 5 }, timeout: 0.5) do |on|
+      on.success do |resp|
+        result = resp['square']
+      end
+    end
 
     sleep 0.1
 

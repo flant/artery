@@ -8,8 +8,6 @@ module Artery
 
     def initialize
       @worker_id = SecureRandom.hex
-
-      Artery.logger.push_tags worker_id
     end
 
     def subscribe_healthz
@@ -31,43 +29,47 @@ module Artery
       @sync = Artery::Sync.new worker_id
 
       Artery.worker = self
-      Artery.start do
-        Artery.logger.push_tags 'Worker', worker_id
-        tries = 0
-        begin
-          subscribe_healthz
-
-          @sync.execute services
-
-          subscriptions_on_services.each do |uri, subscriptions|
-            Artery.logger.debug "Subscribing on '#{uri}'"
-            Artery.subscribe uri.to_route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
-              subscriptions.each do |subscription|
-                message = Subscription::IncomingMessage.new subscription, data, reply, from
-
-                subscription.handle(message)
-              rescue Exception => e
-                Artery.handle_error Error.new("Error in subscription handling: #{e.inspect}",
-                                              original_exception: e,
-                                              subscription: {
-                                                subscriber: subscription.subscriber.to_s,
-                                                route: from,
-                                                data: data.to_json
-                                              })
-              end
-            end
-          end
-        rescue Exception => e
-          tries += 1
-
-          Artery.handle_error Error.new("WORKER ERROR: #{e.inspect}", original_exception: e)
-          retry if tries <= 5
-
-          Artery.handle_error Error.new('Worker failed 5 times and exited.')
-        end
-      end
+      Artery.start { worker_cycle(services, subscriptions_on_services) }
     ensure
       Artery.clear_synchronizing_subscriptions!
+    end
+
+    private
+
+    def worker_cycle(services, subscriptions_on_services)
+      Artery.logger.push_tags 'Worker', worker_id
+      tries = 0
+      begin
+        subscribe_healthz
+
+        @sync.execute services
+
+        subscriptions_on_services.each do |uri, subscriptions|
+          Artery.logger.debug "Subscribing on '#{uri}'"
+          Artery.subscribe uri.to_route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
+            subscriptions.each do |subscription|
+              message = Subscription::IncomingMessage.new subscription, data, reply, from
+
+              subscription.handle(message)
+            rescue StandardError => e
+              Artery.handle_error Error.new("Error in subscription handling: #{e.inspect}",
+                                            original_exception: e,
+                                            subscription: {
+                                              subscriber: subscription.subscriber.to_s,
+                                              route: from,
+                                              data: data.to_json
+                                            })
+            end
+          end
+        end
+      rescue StandardError => e
+        tries += 1
+
+        Artery.handle_error Error.new("WORKER ERROR: #{e.inspect}", original_exception: e)
+        retry if tries <= 5
+
+        Artery.handle_error Error.new('Worker failed 5 times and exited.')
+      end
     end
   end
 end

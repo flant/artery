@@ -24,4 +24,5 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'nats-pure',    '~> 2.0', '< 3'
   s.add_dependency 'rails',        '>= 4.2', '< 8'
+  s.metadata['rubygems_mfa_required'] = 'true'
 end
