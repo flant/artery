@@ -1,6 +1,6 @@
 FactoryBot.define do
   factory :recipient do
-    uuid { "MyString" }
-    name { "MyString" }
+    uuid { Faker::Internet.uuid }
+    name { Faker::Name.name }
   end
 end
