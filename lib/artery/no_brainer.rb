@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Artery
   module NoBrainer
     autoload :Message,          'artery/no_brainer/message'

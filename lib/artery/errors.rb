@@ -5,7 +5,7 @@ module Artery
     attr_accessor :artery_context
 
     def initialize(message = nil, **context)
-      super message
+      super(message)
 
       @original_exception = context.delete(:original_exception)
       @artery_context = context
@@ -21,7 +21,7 @@ module Artery
       @uri = uri
       @response = response || {}
 
-      super nil, **context
+      super(nil, **context)
     end
 
     def message
@@ -38,7 +38,7 @@ module Artery
       @route = route
       @msg = msg
 
-      super nil, **context
+      super(nil, **context)
     end
 
     def message
@@ -53,8 +53,8 @@ module Artery
     end
   end
 
-  if defined?(Raven)
-    class RavenErrorHandler < ErrorHandler
+  if defined?(Sentry)
+    class SentryErrorHandler < ErrorHandler
       def self.handle(exception)
         super
 
@@ -63,7 +63,7 @@ module Artery
         }
         options[:extra][:artery] = exception.artery_context if exception.respond_to?(:artery_context)
 
-        Raven.capture_exception(exception, options)
+        Sentry.capture_exception(exception, **options)
       end
     end
   end

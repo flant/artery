@@ -76,7 +76,8 @@ module Artery
         Artery.message_class.create! model: self.class.artery_model_name,
                                      action: action,
                                      #  version: self.class.artery_version, TODO:
-                                     data: { uuid: artery_uuid, updated_by_service: artery_updated_by_service }.merge(extra_data)
+                                     data: { uuid: artery_uuid,
+                                             updated_by_service: artery_updated_by_service }.merge(extra_data)
       end
 
       def artery_uuid

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Artery
   module ActiveRecord
     autoload :Message,          'artery/active_record/message'

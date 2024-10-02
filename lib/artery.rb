@@ -32,11 +32,10 @@ module Artery
   autoload :ActiveRecord, 'artery/active_record'
   autoload :NoBrainer,    'artery/no_brainer'
 
-  register_backend :nats,      :NATS
   register_backend :nats_pure, :NATSPure
   register_backend :fake,      :Fake
 
-  use_backend :nats # default
+  use_backend :nats_pure # default
 
   class << self
     attr_accessor :worker
