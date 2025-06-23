@@ -1,5 +1,5 @@
 inherit_from: .rubocop_todo.yml
-require:
+plugins:
   - rubocop-rspec
   - rubocop-rspec_rails
 
@@ -35,7 +35,7 @@ Metrics/PerceivedComplexity:
 Style/Documentation:
   Enabled: false
 
-Naming/PredicateName:
+Naming/PredicatePrefix:
   Enabled: false
 
 RSpec/MultipleExpectations:

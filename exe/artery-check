@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require ENV['APP_PATH'] || File.join(File.expand_path('.'), 'config', 'application')
+
+Rails.application.initialize!
+Rails.application.eager_load!
+
+Artery::Check.run ARGV.map(&:strip)
