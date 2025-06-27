@@ -6,4 +6,6 @@ require ENV['APP_PATH'] || File.join(File.expand_path('.'), 'config', 'applicati
 Rails.application.initialize!
 Rails.application.eager_load!
 
+Artery::HealthzServer.new.start unless ENV.fetch('ARTERY_WORKER_HEALTHZ_SERVER_ENABLED', 'false') == 'false'
+
 Artery::Worker.new.run ARGV.map(&:strip)
