@@ -17,24 +17,28 @@ module Artery
         return
       end
 
-      errors = {}
+      result = {}
 
       services.each do |service|
         Artery.request "#{service}.healthz.check", {}, timeout: @timeout do |on|
-          on.error { |e| errors[service] = e }
+          on.success { result[service] = { status: :ok } }
+          on.error { |e| result[service] = { status: :error, message: e } }
         end
       end
 
-      errors
+      result
     end
 
     def self.run(services)
       Artery.logger.push_tags('Check')
-      errors = Artery::Check.new.execute services
+      result = Artery::Check.new.execute services
 
+      errors = result.select { |_service, res| res[:status] == :error }
       return if errors.blank?
 
-      Artery.logger.error "There were errors:\n\t#{errors.map { |service, error| "#{service}: #{error}" }.join("\n\t")}"
+      Artery.logger.error "There were errors:\n\t#{errors.map do |service, result|
+        "#{service}: #{result[:message]}"
+      end.join("\n\t")}"
       exit 1
     ensure
       Artery.logger.pop_tags
