@@ -3,12 +3,13 @@
 module Artery
   class Check
     TIMEOUT = ENV.fetch('ARTERY_CHECK_TIMEOUT', '1').to_i
+    ESSENTIAL_SERVICES = ENV.fetch('ARTERY_CHECK_ESSENTIAL_SERVICES', '').split(',')
 
     def initialize(**options)
       @timeout = options.fetch(:timeout, TIMEOUT)
     end
 
-    def execute(services = [])
+    def execute(services = ESSENTIAL_SERVICES)
       all_services = Artery.subscriptions.blank? ? [] : Artery.subscriptions.keys.map(&:service).uniq
       services = all_services if services.blank?
 
