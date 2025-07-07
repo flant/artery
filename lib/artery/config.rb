@@ -7,7 +7,7 @@ module Artery
     included do # rubocop:disable Metrics/BlockLength
       class << self
         attr_accessor :message_class, :subscription_info_class, :service_name, :backend_config, :request_timeout,
-                      :error_handler, :healthz_server
+                      :error_handler
 
         # Ability to redefine message class (for example, for non-activerecord applications)
         def message_class
@@ -46,13 +46,6 @@ module Artery
             password: ENV.fetch('ARTERY_PASSWORD', nil),
             reconnect_timeout: ENV.fetch('ARTERY_RECONNECT_TIMEOUT', '1').to_i,
             reconnect_attempts: ENV.fetch('ARTERY_RECONNECT_ATTEMPTS', '10').to_i
-          }
-        end
-
-        def healthz_server
-          @healthz_server ||= {
-            port: ENV.fetch('ARTERY_HEALTHZ_SERVER_PORT', 8442),
-            bind_address: ENV.fetch('ARTERY_HEALTHZ_SERVER_BIND_ADDRESS', 'localhost')
           }
         end
 
