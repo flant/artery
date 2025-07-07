@@ -18,8 +18,6 @@ module Artery
   autoload :Backend,       'artery/backend'
   autoload :Subscriptions, 'artery/subscriptions'
 
-  autoload :HealthzServer, 'artery/healthz_server'
-
   include Config
   include Backend
   include Subscriptions
