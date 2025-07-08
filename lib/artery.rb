@@ -12,6 +12,7 @@ module Artery
   autoload :Config,        'artery/config'
   autoload :Worker,        'artery/worker'
   autoload :Sync,          'artery/sync'
+  autoload :Check,         'artery/check'
   autoload :Model,         'artery/model'
   autoload :Routing,       'artery/routing'
   autoload :Backend,       'artery/backend'
