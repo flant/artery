@@ -23,3 +23,5 @@ gem 'overcommit'
 gem 'faker'
 gem 'rspec-rails'
 gem 'factory_bot_rails'
+
+gem "async", "~> 2.34"

@@ -22,6 +22,14 @@ RSpec.describe Source do
       expect(received).to be_present
       expect(received['uuid']).to eq(source.uuid)
     end
+
+    it 'returns subscription metadata' do
+      source
+
+      with_worker do
+        expect(make_request('test.sources.metadata')).to match({ _index: 1 })
+      end
+    end
   end
 
   context 'when updating' do
