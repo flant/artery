@@ -1,4 +1,9 @@
 PATH
+  remote: ../artery-browser
+  specs:
+    artery-browser (0.1.0)
+
+PATH
   remote: .
   specs:
     artery (1.1.0)
@@ -274,6 +279,7 @@ GEM
       unicode-emoji (~> 4.0, >= 4.0.4)
     unicode-emoji (4.0.4)
     useragent (0.16.10)
+    webrick (1.9.1)
     websocket-driver (0.7.6)
       websocket-extensions (>= 0.1.0)
     websocket-extensions (0.1.5)
@@ -285,6 +291,7 @@ PLATFORMS
 
 DEPENDENCIES
   artery!
+  artery-browser!
   async (~> 2.34)
   factory_bot_rails
   faker
@@ -294,6 +301,7 @@ DEPENDENCIES
   rubocop-rspec
   rubocop-rspec_rails
   sqlite3
+  webrick (~> 1.9)
 
 BUNDLED WITH
    2.4.22

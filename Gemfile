@@ -25,3 +25,7 @@ gem 'rspec-rails'
 gem 'factory_bot_rails'
 
 gem "async", "~> 2.34"
+
+gem "artery-browser", path: '../artery-browser'
+
+gem "webrick", "~> 1.9"
