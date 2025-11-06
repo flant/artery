@@ -2,6 +2,8 @@ PATH
   remote: ../artery-browser
   specs:
     artery-browser (0.1.0)
+      rack
+      webrick (~> 1.9)
 
 PATH
   remote: .
@@ -182,6 +184,9 @@ GEM
       stringio
     racc (1.8.1)
     rack (3.1.16)
+    rack-cors (3.0.0)
+      logger
+      rack (>= 3.0.14)
     rack-session (2.1.1)
       base64 (>= 0.1.0)
       rack (>= 3.0.0)
@@ -296,12 +301,12 @@ DEPENDENCIES
   factory_bot_rails
   faker
   overcommit
+  rack-cors (~> 3.0)
   rspec-rails
   rubocop
   rubocop-rspec
   rubocop-rspec_rails
   sqlite3
-  webrick (~> 1.9)
 
 BUNDLED WITH
    2.4.22

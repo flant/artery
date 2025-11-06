@@ -27,5 +27,4 @@ gem 'factory_bot_rails'
 gem "async", "~> 2.34"
 
 gem "artery-browser", path: '../artery-browser'
-
-gem "webrick", "~> 1.9"
+gem "rack-cors", "~> 3.0"
