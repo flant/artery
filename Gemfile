@@ -15,16 +15,13 @@ gemspec
 
 gem 'sqlite3'
 
+gem "async", "~> 2.34"
+gem "artery-browser", path: '../artery-browser'
+gem "rack-cors", "~> 3.0"
 gem 'rubocop'
 gem 'rubocop-rspec'
 gem 'rubocop-rspec_rails'
 gem 'overcommit'
-
 gem 'faker'
 gem 'rspec-rails'
 gem 'factory_bot_rails'
-
-gem "async", "~> 2.34"
-
-gem "artery-browser", path: '../artery-browser'
-gem "rack-cors", "~> 3.0"
