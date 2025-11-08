@@ -1,14 +1,8 @@
 PATH
-  remote: ../artery-browser
-  specs:
-    artery-browser (0.1.0)
-      rack (~> 3.2)
-      webrick (~> 1.9)
-
-PATH
   remote: .
   specs:
     artery (1.1.0)
+      artery-browser (~> 0.1)
       multiblock (~> 0.2)
       nats-pure (~> 2.0, < 3)
       rails (>= 4.2, < 8)
@@ -89,6 +83,9 @@ GEM
       minitest (>= 5.1)
       securerandom (>= 0.3)
       tzinfo (~> 2.0, >= 2.0.5)
+    artery-browser (0.1.0)
+      rack (~> 3.2)
+      webrick (~> 1.9)
     ast (2.4.3)
     async (2.34.0)
       console (~> 1.29)
@@ -302,7 +299,6 @@ PLATFORMS
 
 DEPENDENCIES
   artery!
-  artery-browser!
   async (~> 2.34)
   factory_bot_rails
   faker

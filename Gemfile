@@ -16,7 +16,7 @@ gemspec
 gem 'sqlite3'
 
 gem "async", "~> 2.34"
-gem "artery-browser", path: '../artery-browser'
+# gem "artery-browser", path: '../artery-browser'
 gem "rack-cors", "~> 3.0"
 gem 'rubocop'
 gem 'rubocop-rspec'
