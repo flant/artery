@@ -29,6 +29,15 @@ RSpec.describe Source do
         expect(subscription.latest_message_index).to be(0)
         expect(subscription.latest_outgoing_message_index).to be(0)
       end
+
+      context 'when message queue is not empty' do
+        before { source }
+
+        it do
+          expect(subscription.latest_message_index).to be(0)
+          expect(subscription.latest_outgoing_message_index).to be(1)
+        end
+      end
     end
   end
 
