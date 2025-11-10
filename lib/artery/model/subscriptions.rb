@@ -135,12 +135,6 @@ module Artery
             Artery.publish(reply, updates: updates,
                                   _index: updates_latest_index, _continue: updates_latest_index < latest_index)
           end
-
-          artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :metadata) do |data, reply, sub|
-            Artery.logger.info "HEY-HEY-HEY, message on METADATA with arguments: `#{[data, reply, sub].inspect}`!"
-
-            Artery.publish(reply, { _index: Artery.message_class.latest_index(artery_model_name) })
-          end
         end
         # rubocop:enable Metrics/AbcSize,Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
       end

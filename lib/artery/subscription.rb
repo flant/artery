@@ -36,6 +36,16 @@ module Artery
       info.latest_index.to_i
     end
 
+    def source?
+      @subscriber.artery[:source]
+    end
+
+    def latest_outgoing_message_index
+      return unless source?
+
+      Artery.message_class.latest_index(@subscriber.artery_model_name)
+    end
+
     def new?
       !latest_message_index.positive?
     end
