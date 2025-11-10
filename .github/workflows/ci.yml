@@ -8,9 +8,9 @@
 name: Rspec
 on:
   push:
-    branches: [ $default-branch ]
+    branches: [ master ]
   pull_request:
-    branches: [ $default-branch ]
+    branches: [ master ]
 
 permissions:
   contents: read
@@ -37,4 +37,4 @@ jobs:
           ruby-version: ${{ matrix.ruby-version }}
           bundler-cache: true # runs 'bundle install' and caches installed gems automatically
       - name: Run specs
-        run: bundle exec rspec
+        run: bundle exec rake db:test:prepare && bundle exec rspec

@@ -8,7 +8,7 @@ RSpec.describe Recipient do
   describe '.artery' do
     subject(:artery) { described_class.artery }
 
-    it do
+    specify do
       expect(artery).to match(
         {
           source: false,
@@ -23,7 +23,7 @@ RSpec.describe Recipient do
     describe 'subscription' do
       subject(:subscription) { artery[:subscriptions].first }
 
-      it do
+      specify do
         expect(subscription.latest_message_index).to be(0)
         expect(subscription.latest_outgoing_message_index).to be_nil
       end
