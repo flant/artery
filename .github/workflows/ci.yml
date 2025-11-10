@@ -19,6 +19,13 @@ permissions:
 jobs:
   specs:
     runs-on: ubuntu-latest
+    services:
+      nats:
+        image: nats:2.12-alpine
+        ports:
+          - 4222:4222
+          - 6222:6222
+          - 8222:8222
     strategy:
       matrix:
         ruby-version: ['3.3.5', '3.4.7']
