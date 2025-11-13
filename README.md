@@ -27,6 +27,15 @@ $ rake artery:install:migrations
 $ rake db:migrate
 ```
 
+## Admin interface
+
+In admin interface you can list your artery endpoints and check their statuses.
+You can mount admin ui to your routes via:
+```ruby
+mount Artery::Engine => '/artery'
+```
+And then you can access it by url `http(s)://{ your_app_url }/artery/`.
+
 ## Contributing
 Contribution directions go here.
 
