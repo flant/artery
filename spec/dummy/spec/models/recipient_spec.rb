@@ -5,6 +5,31 @@ RSpec.describe Recipient do
 
   # before { Thread.new { Artery::Worker.new.run } }
 
+  describe '.artery' do
+    subject(:artery) { described_class.artery }
+
+    specify do
+      expect(artery).to match(
+        {
+          source: false,
+          name: :recipient,
+          uuid_attribute: :uuid,
+          subscriptions: [an_instance_of(Artery::Subscription)],
+          representations: { _default: be_a(Proc) }
+        }
+      )
+    end
+
+    describe 'subscription' do
+      subject(:subscription) { artery[:subscriptions].first }
+
+      specify do
+        expect(subscription.latest_message_index).to be(0)
+        expect(subscription.latest_outgoing_message_index).to be_nil
+      end
+    end
+  end
+
   xcontext 'when source created' do
     it 'creates recipient' do
       source

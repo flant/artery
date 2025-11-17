@@ -21,6 +21,7 @@ Gem::Specification.new do |s|
   s.required_ruby_version = '>= 2.7'
 
   s.add_dependency 'multiblock', '~> 0.2'
+  s.add_dependency 'artery-browser', '~> 0.1'
 
   s.add_dependency 'nats-pure',    '~> 2.0', '< 3'
   s.add_dependency 'rails',        '>= 4.2', '< 8'

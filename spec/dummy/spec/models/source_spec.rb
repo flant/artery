@@ -3,6 +3,44 @@
 RSpec.describe Source do
   let(:source) { create(:source) }
 
+  describe '.artery' do
+    subject(:artery) { described_class.artery }
+
+    it do
+      expect(artery).to match(
+        {
+          source: true,
+          name: :source,
+          uuid_attribute: :uuid,
+          subscriptions: [
+            an_instance_of(Artery::Subscription),
+            an_instance_of(Artery::Subscription),
+            an_instance_of(Artery::Subscription)
+          ],
+          representations: { _default: be_a(Proc) }
+        }
+      )
+    end
+
+    describe 'subscription' do
+      subject(:subscription) { artery[:subscriptions].first }
+
+      it do
+        expect(subscription.latest_message_index).to be(0)
+        expect(subscription.latest_outgoing_message_index).to be(0)
+      end
+
+      context 'when message queue is not empty' do
+        before { source }
+
+        it do
+          expect(subscription.latest_message_index).to be(0)
+          expect(subscription.latest_outgoing_message_index).to be(1)
+        end
+      end
+    end
+  end
+
   context 'when creating' do
     it 'creates Artery::Message' do
       source
