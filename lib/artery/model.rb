@@ -60,7 +60,7 @@ module Artery
 
       def artery_version(version = nil)
         if version
-          self.artery = artery.merge(version: version)
+          artery[:version] = version
         else
           artery[:version] || 'v1'
         end
