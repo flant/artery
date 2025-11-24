@@ -13,6 +13,8 @@ module Artery
       options[:source] = false if options[:source].nil?
       options[:uuid_attribute] = :uuid if options[:uuid_attribute].nil?
 
+      class_attribute :artery, instance_writer: false
+
       self.artery = options.merge(representations: {
                                     _default: proc { attributes }
                                   })
@@ -24,19 +26,6 @@ module Artery
     end
 
     module ClassMethods
-      def artery
-        @artery ||=
-          if superclass < Artery::Model
-            superclass.artery.dup
-          else
-          raise "Artery model #{self} is not configured. Add `artery_model` to the class."
-        end
-      end
-
-      def artery=(value)
-        @artery = value
-      end
-
       # Always clone artery configuration in subclass from parent class
       def inherited(sub_class)
         sub_class.artery = artery.dup
@@ -101,10 +90,6 @@ module Artery
         else
           instance_eval(&artery[:representations][:_default])
         end
-      end
-
-      def artery
-        self.class.artery
       end
     end
   end
