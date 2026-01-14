@@ -29,7 +29,8 @@ module Artery
       end
 
       def synchronize_updates_per_page
-        (options[:synchronize_updates].is_a?(Hash) && options[:synchronize_updates][:per_page]) || synchronization_per_page
+        (options[:synchronize_updates].is_a?(Hash) && options[:synchronize_updates][:per_page]) ||
+          synchronization_per_page
       end
 
       def synchronize_updates_autoenrich?
@@ -132,7 +133,7 @@ module Artery
 
             synchronization_transaction { handler.call(:synchronization, objects, page) }
 
-            if synchronization_per_page && objects.count.positive?
+            if synchronization_per_page && objects.any?
               synchronization_page_update!(page)
               Artery.logger.debug "PAGE #{page} RECEIVED, WILL CONTINUE..."
               should_continue = true
@@ -154,8 +155,11 @@ module Artery
 
           on.error do |e|
             synchronization_in_progress!(false)
-            error = Error.new "Failed to get all objects #{uri.model} from #{uri.service} with scope='#{synchronization_scope}': " \
-                              "#{e.message}", **e.artery_context
+            error = Error.new(
+              "Failed to get all objects #{uri.model} from #{uri.service} with " \
+              "scope='#{synchronization_scope}': #{e.message}",
+              **e.artery_context
+            )
             Artery.handle_error error
           end
         end
