@@ -71,8 +71,9 @@ module Artery
               response = JSON.parse(message).with_indifferent_access
 
               if response.key?(:error)
-                handler.call :error, RequestError.new(uri, response, request: { route: uri.to_route, data: data.to_json },
-                                                                     response: message)
+                handler.call :error, RequestError.new(uri, response,
+                                                      request: { route: uri.to_route, data: data.to_json },
+                                                      response: message)
               else
                 handler.call :success, response
               end

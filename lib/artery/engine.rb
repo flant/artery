@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "artery/browser/app"
+require 'artery/browser/app'
 
 module Artery
   class Engine < ::Rails::Engine

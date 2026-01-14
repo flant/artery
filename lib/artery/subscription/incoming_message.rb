@@ -66,7 +66,8 @@ module Artery
                                 data: data.to_json,
                                 route: from
                               },
-                              request: { data: get_data.to_json, route: get_uri.to_route }, response: attributes.to_json)
+                              request: { data: get_data.to_json, route: get_uri.to_route },
+                              response: attributes.to_json)
             Artery.handle_error error
           end
 
@@ -74,12 +75,15 @@ module Artery
             if e.message == 'not_found'
               yield(:not_found)
             else
-              error = Error.new("Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{e.message}",
-                                e.artery_context.merge(subscription: {
-                                                         subscriber: subscription.subscriber.to_s,
-                                                         data: data.to_json,
-                                                         route: from_uri.to_route
-                                                       }))
+              error = Error.new(
+                "Failed to get #{get_uri.model} from #{get_uri.service} with uuid='#{data[:uuid]}': #{e.message}",
+                **e.artery_context,
+                subscription: {
+                  subscriber: subscription.subscriber.to_s,
+                  data: data.to_json,
+                  route: from_uri.to_route
+                }
+              )
               Artery.handle_error error
             end
           end
