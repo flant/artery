@@ -83,6 +83,7 @@ module Artery
       def receive_all
         synchronization_in_progress! unless synchronization_in_progress?
 
+        reset_latest_index!
         while receive_all_once == :continue; end
       end
 
@@ -219,6 +220,12 @@ module Artery
           end
         end
         :continue if should_continue
+      end
+
+      def reset_latest_index!
+        return unless latest_message_index.positive?
+
+        info.update!(latest_index: 0)
       end
     end
   end
