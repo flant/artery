@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2024_09_30_141929) do
+ActiveRecord::Schema[7.2].define(version: 2025_03_20_120000) do
   create_table "artery_messages", force: :cascade do |t|
     t.string "version"
     t.string "model", null: false
@@ -18,6 +18,12 @@ ActiveRecord::Schema[7.2].define(version: 2024_09_30_141929) do
     t.text "data", null: false
     t.datetime "created_at"
     t.index ["model"], name: "index_artery_messages_on_model"
+  end
+
+  create_table "artery_model_infos", force: :cascade do |t|
+    t.string "model", null: false
+    t.bigint "latest_index", default: 0, null: false
+    t.index ["model"], name: "index_artery_model_infos_on_model", unique: true
   end
 
   create_table "artery_subscription_infos", force: :cascade do |t|

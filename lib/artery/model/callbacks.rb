@@ -14,26 +14,42 @@ module Artery
           after_archive   :artery_on_archive
           after_unarchive :artery_on_unarchive
         end
+
+        before_commit :artery_send_pending_notifications
       end
 
       def artery_on_create
-        artery_notify_message(:create)
+        artery_pending_notifications << [:create]
       end
 
       def artery_on_update
-        artery_notify_message(:update)
+        artery_pending_notifications << [:update]
       end
 
       def artery_on_archive
-        artery_notify_message(:archive, archived_at: archived_at.to_f)
+        artery_pending_notifications << [:archive, { archived_at: archived_at.to_f }]
       end
 
       def artery_on_unarchive
-        artery_notify_message(:unarchive)
+        artery_pending_notifications << [:unarchive]
       end
 
       def artery_on_destroy
-        artery_notify_message(:delete)
+        artery_pending_notifications << [:delete]
+      end
+
+      private
+
+      def artery_pending_notifications
+        @artery_pending_notifications ||= []
+      end
+
+      def artery_send_pending_notifications
+        artery_pending_notifications.each do |action, extra_data|
+          artery_notify_message(action, extra_data || {})
+        end
+      ensure
+        @artery_pending_notifications = nil
       end
     end
   end
