@@ -132,8 +132,6 @@ module Artery
 
         Artery.request all_uri.to_route, all_data do |on|
           on.success do |data|
-            Artery::Instrumentation.instrument(:sync, stage: :all_objects, route: all_uri.to_route, data: data)
-
             objects = data[:objects].map(&:with_indifferent_access)
 
             synchronization_transaction { handler.call(:synchronization, objects, page) }
@@ -188,8 +186,6 @@ module Artery
 
         Artery.request updates_uri.to_route, updates_data do |on|
           on.success do |data|
-            Artery::Instrumentation.instrument(:sync, stage: :updates, route: updates_uri.to_route, data: data)
-
             updates = data[:updates].map(&:with_indifferent_access)
             synchronization_transaction do
               updates.sort_by { |u| u[:_index] }.each do |update|

@@ -101,8 +101,6 @@ Available events (each uses a `stage:`, `state:`, or `action:` payload key to di
 | | | `:skipped` | `reason` | Message skipped |
 | `sync.artery` | `stage` | `:receive_all` | `route` | Full sync (block, has duration) |
 | | | `:receive_updates` | `route` | Incremental sync (block, has duration) |
-| | | `:all_objects` | `route`, `data` | All objects received |
-| | | `:updates` | `route`, `data` | Updates received |
 | | | `:page` | `route`, `page` | Page received |
 | | | `:continue` | — | Not all updates received, continuing |
 | `connection.artery` | `state` | `:connected` | `server` | Connected to backend |

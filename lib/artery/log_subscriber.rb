@@ -32,8 +32,6 @@ module Artery
       case p[:stage]
       when :receive_all     then info "[SYNC] receive_all <#{p[:route]}> (#{event.duration.round(1)}ms)"
       when :receive_updates then info "[SYNC] receive_updates <#{p[:route]}> (#{event.duration.round(1)}ms)"
-      when :all_objects     then debug "[SYNC] all objects <#{p[:route]}> #{truncate_body(p[:data])}"
-      when :updates         then debug "[SYNC] updates <#{p[:route]}> #{truncate_body(p[:data])}"
       when :page            then debug "[SYNC] page #{p[:page]} received for <#{p[:route]}>"
       when :continue        then debug '[SYNC] not all updates received, continuing...'
       end
