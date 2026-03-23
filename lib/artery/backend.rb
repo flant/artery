@@ -58,14 +58,18 @@ module Artery
         yield(handler)
 
         data ||= {}
-        Artery.logger.debug "REQUESTED: <#{uri.to_route}> #{data.to_json}"
+        Artery::Instrumentation.instrument(:request, stage: :sent, route: uri.to_route, data: data)
 
+        request_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         backend.request(uri.to_route, data.to_json, options) do |message|
+          duration_ms = (Process.clock_gettime(Process::CLOCK_MONOTONIC) - request_start) * 1000
           if message.is_a?(Error) # timeout case
-            Artery.logger.debug "REQUEST ERROR: <#{uri.to_route}> #{message.message}"
+            Artery::Instrumentation.instrument(:request, stage: :error, route: uri.to_route,
+                                                         error: message.message, duration_ms: duration_ms)
             handler.call :error, message
           else
-            Artery.logger.debug "REQUEST RESPONSE: <#{uri.to_route}> #{message}"
+            Artery::Instrumentation.instrument(:request, stage: :response, route: uri.to_route,
+                                                         data: message, duration_ms: duration_ms)
             begin
               message ||= '{}'
               response = JSON.parse(message).with_indifferent_access
@@ -89,7 +93,7 @@ module Artery
 
       def publish(route, data)
         backend.publish(route, data.to_json)
-        Artery.logger.debug "PUBLISHED: <#{route}> #{data.to_json}"
+        Artery::Instrumentation.instrument(:publish, route: route, data: data)
       end
     end
   end

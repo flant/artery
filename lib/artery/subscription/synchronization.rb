@@ -83,14 +83,18 @@ module Artery
       def receive_all
         synchronization_in_progress! unless synchronization_in_progress?
 
-        reset_latest_index!
-        while receive_all_once == :continue; end
+        Artery::Instrumentation.instrument(:sync, stage: :receive_all, route: uri.to_route) do
+          reset_latest_index!
+          while receive_all_once == :continue; end
+        end
       end
 
       def receive_updates
         synchronization_in_progress!
 
-        while receive_updates_once == :continue; end
+        Artery::Instrumentation.instrument(:sync, stage: :receive_updates, route: uri.to_route) do
+          while receive_updates_once == :continue; end
+        end
       end
 
       private
@@ -128,15 +132,13 @@ module Artery
 
         Artery.request all_uri.to_route, all_data do |on|
           on.success do |data|
-            Artery.logger.debug "HEY-HEY, ALL OBJECTS: <#{all_uri.to_route}> #{[data].inspect}"
-
             objects = data[:objects].map(&:with_indifferent_access)
 
             synchronization_transaction { handler.call(:synchronization, objects, page) }
 
             if synchronization_per_page && objects.any?
               synchronization_page_update!(page)
-              Artery.logger.debug "PAGE #{page} RECEIVED, WILL CONTINUE..."
+              Artery::Instrumentation.instrument(:sync, stage: :page, route: all_uri.to_route, page: page)
               should_continue = true
             else
               synchronization_page_update!(nil) if synchronization_per_page
@@ -184,8 +186,6 @@ module Artery
 
         Artery.request updates_uri.to_route, updates_data do |on|
           on.success do |data|
-            Artery.logger.debug "HEY-HEY, LAST_UPDATES: <#{updates_uri.to_route}> #{[data].inspect}"
-
             updates = data[:updates].map(&:with_indifferent_access)
             synchronization_transaction do
               updates.sort_by { |u| u[:_index] }.each do |update|
@@ -197,7 +197,7 @@ module Artery
             end
 
             if data[:_continue]
-              Artery.logger.debug 'NOT ALL UPDATES RECEIVED, WILL CONTINUE...'
+              Artery::Instrumentation.instrument(:sync, stage: :continue)
               should_continue = true
             else
               synchronization_in_progress!(false)

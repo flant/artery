@@ -16,20 +16,20 @@ module Artery
           client = ::NATS.connect(options)
 
           client.on_reconnect do
-            Artery.logger.debug "Reconnected to server at #{client.connected_server}"
+            Artery::Instrumentation.instrument(:connection, state: :reconnected, server: client.connected_server)
           end
 
           client.on_disconnect do
-            Artery.logger.debug 'Disconnected!'
+            Artery::Instrumentation.instrument(:connection, state: :disconnected)
           end
 
           client.on_close do
-            Artery.logger.debug 'Connection to NATS closed'
+            Artery::Instrumentation.instrument(:connection, state: :closed)
           end
           client
         end
 
-        Artery.logger.debug "Connected to #{@client.connected_server}"
+        Artery::Instrumentation.instrument(:connection, state: :connected, server: @client.connected_server)
         @client.connect unless @client.connected?
 
         @client
