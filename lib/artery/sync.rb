@@ -25,11 +25,11 @@ module Artery
 
     def self.run(subscriptions)
       sync_id = SecureRandom.hex
-      Artery.logger.push_tags('Sync', sync_id)
-      Artery::Sync.new(sync_id).execute subscriptions
-    ensure
-      Artery.clear_synchronizing_subscriptions!
-      Artery.logger.pop_tags
+      Artery.logger.tagged('Sync', sync_id) do
+        Artery::Sync.new(sync_id).execute subscriptions
+      ensure
+        Artery.clear_synchronizing_subscriptions!
+      end
     end
   end
 end

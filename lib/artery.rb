@@ -4,6 +4,8 @@ require_relative 'artery/engine' if defined?(Rails)
 
 require_relative 'artery/errors'
 require_relative 'artery/backends/base'
+require_relative 'artery/instrumentation'
+require_relative 'artery/log_subscriber'
 
 require 'multiblock'
 require_relative 'multiblock_has_block'
@@ -44,7 +46,7 @@ module Artery
     def handle_signals
       %w[TERM INT].each do |sig|
         trap(sig) do
-          puts "Caught #{sig} signal, exiting..."
+          Artery.logger.info "Caught #{sig} signal, exiting..."
 
           yield if block_given?
 

@@ -60,39 +60,43 @@ module Artery
     end
 
     def handle(message) # rubocop:disable Metrics/AbcSize
-      Artery.logger.push_tags message.reply
-      Artery.logger.debug "GOT MESSAGE: #{message.inspect}"
+      request_id = message.reply || SecureRandom.hex(8)
+      Artery.logger.tagged(request_id) do
+        Artery::Instrumentation.instrument(
+          :message, stage: :received, route: message.from, data: message.data, request_id: request_id
+        )
 
-      info.lock_for_message(message) do
-        if !message.from_updates? && synchronization_in_progress?
-          Artery.logger.debug 'SKIPPING MESSAGE RECEIVED WHILE SYNC IN PROGRESS'
-          return
-        end
-        return if !message.from_updates? && !validate_index(message)
-
-        if message.update_by_us?
-          Artery.logger.debug 'SKIPPING UPDATE MADE BY US'
-          update_info_by_message!(message)
-          return
-        end
-
-        unless handler.has_block?(message.action) || handler.has_block?(:_default)
-          Artery.logger.debug 'SKIPPING MESSAGE WE ARE NOT LISTENING TO'
-          update_info_by_message!(message)
-          return
-        end
-
-        case message.action
-        when :create, :update
-          message.enrich_data do |attributes|
-            handle_data(message, attributes)
+        info.lock_for_message(message) do
+          if !message.from_updates? && synchronization_in_progress?
+            Artery::Instrumentation.instrument(:message, stage: :skipped, reason: 'sync in progress')
+            return
           end
-        else
-          handle_data(message)
+          return if !message.from_updates? && !validate_index(message)
+
+          if message.update_by_us?
+            Artery::Instrumentation.instrument(:message, stage: :skipped, reason: 'update by us')
+            update_info_by_message!(message)
+            return
+          end
+
+          unless handler.has_block?(message.action) || handler.has_block?(:_default)
+            Artery::Instrumentation.instrument(:message, stage: :skipped, reason: 'no listener for action')
+            update_info_by_message!(message)
+            return
+          end
+
+          Artery::Instrumentation.instrument(:message, stage: :handled, route: message.from, request_id: request_id) do
+            case message.action
+            when :create, :update
+              message.enrich_data do |attributes|
+                handle_data(message, attributes)
+              end
+            else
+              handle_data(message)
+            end
+          end
         end
       end
-    ensure
-      Artery.logger.pop_tags
     end
 
     protected
@@ -101,13 +105,11 @@ module Artery
       return true unless message.previous_index.positive? && latest_message_index.positive?
 
       if message.previous_index > latest_message_index
-        Artery.logger.debug 'WE\'VE GOT FUTURE MESSAGE, REQUESTING ALL MISSED'
-
-        synchronize! # this will include current message
+        Artery::Instrumentation.instrument(:message, stage: :skipped, reason: 'future message, requesting missed')
+        synchronize!
         false
       elsif message.previous_index < latest_message_index
-        Artery.logger.debug 'WE\'VE GOT PREVIOUS MESSAGE AND ALREADY HANDLED IT, SKIPPING'
-
+        Artery::Instrumentation.instrument(:message, stage: :skipped, reason: 'duplicate message, already handled')
         false
       else
         true
@@ -118,8 +120,8 @@ module Artery
       data ||= message.data
 
       info.lock_for_message(message) do
-        if data == :not_found # special data when enrich failed with not_found
-          Artery.logger.debug 'SKIP HANDLING MESSAGE BECAUSE ENRICH DATA IS BLANK'
+        if data == :not_found
+          Artery::Instrumentation.instrument(:message, stage: :skipped, reason: 'enrich data not found')
         else
           handler.call(:_before_action, message.action, data, message.reply, message.from)
 

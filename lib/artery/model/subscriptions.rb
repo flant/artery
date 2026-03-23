@@ -53,8 +53,7 @@ module Artery
 
         # rubocop:disable Metrics/AbcSize,Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
         def artery_add_get_subscriptions
-          artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get) do |data, reply, sub|
-            Artery.logger.info "HEY-HEY-HEY, message on GET with arguments: `#{[data, reply, sub].inspect}`!"
+          artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get) do |data, reply, _sub|
             obj = artery_find data['uuid']
 
             representation = data['representation']
@@ -64,9 +63,7 @@ module Artery
             Artery.publish(reply, data)
           end
 
-          artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_all) do |data, reply, sub|
-            Artery.logger.info "HEY-HEY-HEY, message on GET_ALL with arguments: `#{[data, reply, sub].inspect}`!"
-
+          artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get_all) do |data, reply, _sub|
             scope    = "artery_#{data['scope'] || 'all'}"
             per_page = data['per_page']
             page     = data['page'] || 0
@@ -90,9 +87,7 @@ module Artery
           end
 
           artery_add_subscription Routing.uri(model: artery_model_name_plural,
-                                              action: :get_updates) do |data, reply, sub|
-            Artery.logger.info "HEY-HEY-HEY, message on GET_UPDATES with arguments: `#{[data, reply, sub].inspect}`!"
-
+                                              action: :get_updates) do |data, reply, _sub|
             index = data['after_index'].to_i
             autoenrich = data['representation'].present?
             per_page = data['per_page'] || (autoenrich ? ARTERY_MAX_AUTOENRICHED_UPDATES_SYNC : ARTERY_MAX_UPDATES_SYNC)
@@ -111,8 +106,6 @@ module Artery
 
             latest_index = Artery.message_class.latest_index(artery_model_name)
             updates_latest_index = messages.last&.index || latest_index
-
-            Artery.logger.info "MESSAGES: #{messages.inspect}"
 
             # Autoenrich data
             if autoenrich

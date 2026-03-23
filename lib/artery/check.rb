@@ -31,18 +31,17 @@ module Artery
     end
 
     def self.run(services)
-      Artery.logger.push_tags('Check')
-      result = Artery::Check.new.execute services
+      Artery.logger.tagged('Check') do
+        result = Artery::Check.new.execute services
 
-      errors = result.select { |_service, res| res[:status] == :error }
-      return if errors.blank?
+        errors = result.select { |_service, res| res[:status] == :error }
+        return if errors.blank?
 
-      Artery.logger.error "There were errors:\n\t#{errors.map do |service, result|
-        "#{service}: #{result[:message]}"
-      end.join("\n\t")}"
-      exit 1
-    ensure
-      Artery.logger.pop_tags
+        Artery.logger.error "There were errors:\n\t#{errors.map do |service, res|
+          "#{service}: #{res[:message]}"
+        end.join("\n\t")}"
+        exit 1
+      end
     end
   end
 end
