@@ -9,7 +9,7 @@ class CreateArteryModelInfos < ActiveRecord::Migration[5.2]
 
     add_index :artery_model_infos, :model, unique: true
 
-    execute <<~SQL
+    execute <<~SQL.squish
       INSERT INTO artery_model_infos (model, latest_index)
       SELECT model, COALESCE(MAX(id), 0)
       FROM artery_messages
