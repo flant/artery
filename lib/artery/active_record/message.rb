@@ -10,6 +10,9 @@ module Artery
       serialize :data, coder: JSON
 
       after_commit :send_to_artery, on: :create
+      around_create :lock_on_model
+
+      attr_accessor :cached_previous_index
 
       alias index id
 
@@ -20,7 +23,7 @@ module Artery
         end
 
         def latest_index(model)
-          where(model: model).last&.id.to_i
+          Artery.model_info_class.find_by(model: model)&.latest_index.to_i
         end
 
         def delete_old
@@ -29,12 +32,22 @@ module Artery
         end
       end
 
-      # It is used in after_commit, so we always know previous index based on our current index
       def previous_index
+        return cached_previous_index if cached_previous_index
+
         scope = self.class.where(model: model).order(:id)
         scope = scope.where(self.class.arel_table[:id].lt(index)) if index
 
         scope.select(:id).last&.id.to_i
+      end
+
+      private
+
+      def lock_on_model
+        lock_row = Artery.model_info_class.acquire_lock!(model)
+        self.cached_previous_index = lock_row.latest_index
+        yield
+        lock_row.update!(latest_index: id)
       end
     end
   end

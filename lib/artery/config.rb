@@ -6,12 +6,16 @@ module Artery
 
     included do # rubocop:disable Metrics/BlockLength
       class << self
-        attr_accessor :message_class, :subscription_info_class, :service_name, :backend_config, :request_timeout,
-                      :error_handler
+        attr_accessor :message_class, :model_info_class, :subscription_info_class, :service_name, :backend_config,
+                      :request_timeout, :error_handler
 
         # Ability to redefine message class (for example, for non-activerecord applications)
         def message_class
           @message_class || get_model_class(:Message)
+        end
+
+        def model_info_class
+          @model_info_class || get_model_class(:ModelInfo)
         end
 
         def subscription_info_class
@@ -33,6 +37,16 @@ module Artery
 
         def request_timeout
           @request_timeout || ENV.fetch('ARTERY_REQUEST_TIMEOUT', '15').to_i
+        end
+
+        attr_writer :log_messages, :message_body_max_size
+
+        def log_messages?
+          instance_variable_defined?(:@log_messages) ? @log_messages : true
+        end
+
+        def message_body_max_size
+          instance_variable_defined?(:@message_body_max_size) ? @message_body_max_size : nil
         end
 
         def error_handler
