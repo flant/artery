@@ -101,4 +101,43 @@ RSpec.describe Source do
       expect(received['uuid']).to eq(source.uuid)
     end
   end
+
+  describe 'deferred callbacks' do
+    it 'does not create artery messages on rollback' do
+      expect do
+        described_class.transaction do
+          described_class.create!(uuid: Faker::Internet.uuid, name: 'rollback')
+          raise ActiveRecord::Rollback
+        end
+      end.not_to change(Artery.message_class, :count)
+    end
+
+    it 'creates multiple artery messages for create+update in one transaction' do
+      s = nil
+      described_class.transaction do
+        s = described_class.create!(uuid: Faker::Internet.uuid, name: 'original')
+        s.update!(name: 'updated')
+      end
+
+      messages = Artery.message_class.where(model: 'source').order(:id)
+      expect(messages.map(&:action)).to eq(%w[create update])
+      expect(messages.map { |m| m.data['uuid'] }.uniq).to eq([s.uuid])
+    end
+  end
+
+  describe 'Backend _previous_index payload' do
+    it 'publishes correct _previous_index for sequential messages' do
+      received = []
+      Artery.subscribe('test.source.create') { |m| received << m }
+
+      create(:source)
+      create(:source)
+
+      sleep 0.2
+
+      expect(received.size).to eq(2)
+      expect(received[0]['_previous_index']).to eq(0)
+      expect(received[1]['_previous_index']).to eq(received[0]['_index'])
+    end
+  end
 end
