@@ -16,8 +16,6 @@ module Artery
         end
       end
 
-      private
-
       def artery_on_create
         artery_notify_message(:create)
       end
