@@ -44,9 +44,7 @@ module Artery
       raise NotImplementedError
     end
 
-    protected
-
-    def send_to_artery
+    def publish_to_artery(previous_index: self.previous_index)
       Artery.publish route, to_artery.merge('_previous_index' => previous_index)
     end
   end

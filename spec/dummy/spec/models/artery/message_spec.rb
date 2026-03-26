@@ -13,23 +13,6 @@ RSpec.describe Artery::ActiveRecord::Message do
     end
   end
 
-  describe '#cached_previous_index' do
-    it 'is used by previous_index when set' do
-      message = described_class.new
-      message.cached_previous_index = 42
-
-      expect(message.previous_index).to eq(42)
-    end
-
-    it 'falls back to DB query when not set' do
-      create(:source)
-      message = described_class.last
-
-      expect(message.cached_previous_index).to be_nil
-      expect(message.previous_index).to eq(0)
-    end
-  end
-
   describe '.latest_index' do
     it 'returns 0 when no messages exist' do
       expect(described_class.latest_index(:source)).to eq(0)
@@ -42,13 +25,30 @@ RSpec.describe Artery::ActiveRecord::Message do
       expect(described_class.latest_index(:source)).to eq(last_message.id)
     end
 
-    it 'matches the value stored in ModelInfo' do
+    it 'queries directly from artery_messages table' do
       create(:source)
       last_message = described_class.last
 
-      model_info = Artery::ActiveRecord::ModelInfo.find_by(model: 'source')
-      expect(model_info.latest_index).to eq(last_message.id)
-      expect(described_class.latest_index(:source)).to eq(model_info.latest_index)
+      expect(described_class.latest_index(:source)).to eq(last_message.id)
+      expect(described_class.latest_index(:nonexistent)).to eq(0)
+    end
+  end
+
+  describe '#publish_to_artery' do
+    it 'publishes message with given previous_index' do
+      create(:source)
+      message = described_class.last
+
+      received = nil
+      Artery.subscribe(message.route) { |m| received = m }
+
+      message.publish_to_artery(previous_index: 42)
+
+      sleep 0.1
+
+      expect(received).to be_present
+      expect(received['_index']).to eq(message.id)
+      expect(received['_previous_index']).to eq(42)
     end
   end
 end
