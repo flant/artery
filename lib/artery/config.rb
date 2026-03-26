@@ -39,7 +39,7 @@ module Artery
           @request_timeout || ENV.fetch('ARTERY_REQUEST_TIMEOUT', '15').to_i
         end
 
-        attr_writer :log_messages, :message_body_max_size
+        attr_writer :log_messages, :message_body_max_size, :inline_publish
 
         def log_messages?
           instance_variable_defined?(:@log_messages) ? @log_messages : true
@@ -47,6 +47,10 @@ module Artery
 
         def message_body_max_size
           instance_variable_defined?(:@message_body_max_size) ? @message_body_max_size : nil
+        end
+
+        def inline_publish?
+          instance_variable_defined?(:@inline_publish) ? @inline_publish : true
         end
 
         def error_handler

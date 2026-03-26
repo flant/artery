@@ -125,69 +125,6 @@ RSpec.describe Source do
     end
   end
 
-  describe 'non_atomic_notification mode' do
-    let(:deferred_source_class) do
-      Class.new(ApplicationRecord) do
-        self.table_name = 'sources'
-        extend Artery::Model
-        artery_model source: true, non_atomic_notification: true, name: :deferred_source
-      end
-    end
-
-    it 'registers after_commit instead of before_commit' do
-      callbacks = deferred_source_class._commit_callbacks.map { |cb| cb.filter.to_s }
-      expect(callbacks).to include('artery_send_pending_notifications')
-
-      before_commit_callbacks = deferred_source_class._before_commit_callbacks.map { |cb| cb.filter.to_s }
-      expect(before_commit_callbacks).not_to include('artery_send_pending_notifications')
-    end
-
-    it 'creates artery messages on create' do
-      expect do
-        deferred_source_class.create!(uuid: Faker::Internet.uuid, name: 'deferred')
-      end.to change(Artery.message_class, :count).by(1)
-
-      expect(Artery.message_class.last.action).to eq('create')
-    end
-
-    it 'creates artery messages with correct previous_index chain' do
-      deferred_source_class.create!(uuid: Faker::Internet.uuid, name: 'first')
-      deferred_source_class.create!(uuid: Faker::Internet.uuid, name: 'second')
-
-      messages = Artery.message_class.where(model: 'deferred_source').order(:id).to_a
-      expect(messages.size).to eq(2)
-      expect(messages[0].previous_index).to eq(0)
-      expect(messages[1].previous_index).to eq(messages[0].id)
-    end
-
-    it 'retries on failure and eventually succeeds' do
-      call_count = 0
-      allow(Artery.message_class).to receive(:create!).and_wrap_original do |m, **args|
-        call_count += 1
-        raise StandardError, 'transient error' if call_count <= 2
-
-        m.call(**args)
-      end
-
-      expect do
-        deferred_source_class.create!(uuid: Faker::Internet.uuid, name: 'retry-test')
-      end.to change(Artery.message_class, :count).by(1)
-
-      expect(call_count).to eq(3)
-    end
-
-    it 'reports error after exhausting retries' do
-      allow(Artery.message_class).to receive(:create!).and_raise(StandardError, 'persistent error')
-      allow(Artery).to receive(:handle_error)
-
-      deferred_source_class.create!(uuid: Faker::Internet.uuid, name: 'fail-test')
-
-      expect(Artery).to have_received(:handle_error).with(
-        an_instance_of(Artery::Error).and(having_attributes(message: /persistent error/))
-      )
-    end
-  end
-
   describe 'Backend _previous_index payload' do
     it 'publishes correct _previous_index for sequential messages' do
       received = []

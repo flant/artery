@@ -27,6 +27,32 @@ $ rake artery:install:migrations
 $ rake db:migrate
 ```
 
+## Publishing modes
+
+Artery supports two modes for publishing messages to NATS:
+
+### Inline mode (`inline_publish = true`, default)
+
+Messages are published directly from the `after_commit` callback. No additional processes required -- convenient for development and testing. However, under high concurrency `after_commit` callbacks can execute out of order across transactions, which may lead to incorrect `_previous_index` values. **Recommended for development only.**
+
+### Publisher mode (`inline_publish = false`)
+
+A separate Publisher process polls `artery_messages` and publishes them to NATS in strict `id` order, guaranteeing a correct `_previous_index` chain. Messages are persisted inside the model transaction (`before_commit`) without any locks, so there is no contention overhead. **Recommended for production.**
+
+```ruby
+Artery.configure do |config|
+  config.inline_publish = false
+end
+```
+
+Running the publisher:
+
+```bash
+$ bundle exec artery-publisher
+```
+
+The publisher uses a `concurrent-ruby` thread pool. Pool size is controlled by `RAILS_MAX_THREADS` (default 5). Each model gets its own thread that polls for unpublished messages.
+
 ## Admin interface
 
 In admin interface you can list your artery endpoints and check their statuses.
@@ -45,6 +71,11 @@ Artery uses `ActiveSupport::Notifications` for instrumentation and `ActiveSuppor
 ```ruby
 Artery.configure do |config|
   config.service_name = :my_service
+
+  # When true, messages are published inline from after_commit (no publisher needed).
+  # Set to false in production when running the publisher process.
+  # Default: true
+  config.inline_publish = false
 
   # Log every message (publish/request/subscribe/response).
   # When false, only lifecycle events (errors, sync, connect/disconnect) are logged.
@@ -111,6 +142,10 @@ Available events (each uses a `stage:`, `state:`, or `action:` payload key to di
 | | | `:subscribing` | `route` | Subscribing to route |
 | `lock.artery` | `state` | `:waiting` | `latest_index` | Waiting for subscription lock |
 | | | `:acquired` | `latest_index` | Lock acquired |
+| `publisher.artery` | `action` | `:started` | — | Publisher loop started |
+| | | `:model_started` | `model` | Model polling thread started |
+| | | `:publishing` | `model`, `count` | Batch published (block, has duration) |
+| | | `:error` | `model`, `error` | Publisher error for model |
 
 ## Contributing
 Contribution directions go here.
