@@ -142,6 +142,10 @@ Available events (each uses a `stage:`, `state:`, or `action:` payload key to di
 | | | `:subscribing` | `route` | Subscribing to route |
 | `lock.artery` | `state` | `:waiting` | `latest_index` | Waiting for subscription lock |
 | | | `:acquired` | `latest_index` | Lock acquired |
+| `publisher.artery` | `action` | `:started` | — | Publisher loop started |
+| | | `:model_started` | `model` | Model polling thread started |
+| | | `:publishing` | `model`, `count` | Batch published (block, has duration) |
+| | | `:error` | `model`, `error` | Publisher error for model |
 
 ## Contributing
 Contribution directions go here.

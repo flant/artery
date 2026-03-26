@@ -29,6 +29,8 @@ module Artery
       )
       @running_models = Concurrent::Set.new
 
+      Instrumentation.instrument(:publisher, action: :started)
+
       loop do
         models = Artery.model_info_class.pluck(:model)
 
@@ -44,19 +46,23 @@ module Artery
     end
 
     def model_loop(model)
-      Artery.model_info_class.ensure_initialized!(model)
+      Artery.logger.tagged('Publisher', model) do
+        Artery.model_info_class.ensure_initialized!(model)
+        Instrumentation.instrument(:publisher, action: :model_started, model: model)
 
-      loop do
-        published = publish_batch(model)
-        sleep POLL_INTERVAL if published < BATCH_SIZE
+        loop do
+          published = publish_batch(model)
+          sleep POLL_INTERVAL if published < BATCH_SIZE
+        end
+      rescue StandardError => e
+        Instrumentation.instrument(:publisher, action: :error, model: model, error: e.message)
+        Artery.handle_error Error.new(
+          "Publisher error for #{model}: #{e.message}",
+          original_exception: e
+        )
+        sleep POLL_INTERVAL
+        retry
       end
-    rescue StandardError => e
-      Artery.handle_error Error.new(
-        "Publisher error for #{model}: #{e.message}",
-        original_exception: e
-      )
-      sleep POLL_INTERVAL
-      retry
     ensure
       @running_models.delete(model)
     end
@@ -73,9 +79,11 @@ module Artery
         return 0 if messages.empty?
 
         prev_index = row.last_published_id
-        messages.each do |msg|
-          msg.publish_to_artery(previous_index: prev_index)
-          prev_index = msg.id
+        Instrumentation.instrument(:publisher, action: :publishing, model: model, count: messages.size) do
+          messages.each do |msg|
+            msg.publish_to_artery(previous_index: prev_index)
+            prev_index = msg.id
+          end
         end
 
         row.update!(last_published_id: prev_index)

@@ -66,6 +66,19 @@ module Artery
       end
     end
 
+    def publisher(event)
+      p = event.payload
+      model_tag = p[:model] ? " [#{p[:model]}]" : ''
+
+      case p[:action]
+      when :started then info '[Publisher] started'
+      when :model_started then info "[Publisher]#{model_tag} polling started"
+      when :publishing
+        debug "[Publisher]#{model_tag} published #{p[:count]} messages (#{event.duration.round(1)}ms)"
+      when :error then error "[Publisher]#{model_tag} #{p[:error]}"
+      end
+    end
+
     private
 
     def debug(msg)
