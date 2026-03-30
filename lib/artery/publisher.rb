@@ -4,7 +4,7 @@ require 'concurrent'
 
 module Artery
   class Publisher
-    DISCOVERY_INTERVAL = 5
+    DISCOVERY_INTERVAL = 30
     POLL_INTERVAL = 0.5
     BATCH_SIZE = 100
 
@@ -27,44 +27,64 @@ module Artery
         max_queue: 0,
         fallback_policy: :caller_runs
       )
-      @running_models = Concurrent::Set.new
+      @known_models = Concurrent::Set.new
+      @busy_models = Concurrent::Set.new
+      @last_discovery = Time.at(0)
 
       Instrumentation.instrument(:publisher, action: :started)
 
       loop do
-        models = Artery.model_info_class.pluck(:model)
+        discover_models if discovery_due?
 
-        models.each do |model|
-          next if @running_models.include?(model)
+        @known_models.each do |model|
+          next if @busy_models.include?(model)
 
-          @running_models.add(model)
-          @pool.post { model_loop(model) }
+          @busy_models.add(model)
+          @pool.post { process_model(model) }
         end
 
-        sleep DISCOVERY_INTERVAL
+        sleep POLL_INTERVAL
       end
     end
 
-    def model_loop(model)
-      Artery.logger.tagged('Publisher', model) do
+    def discover_models
+      current = Artery.model_info_class.pluck(:model)
+
+      (@known_models - current).each do |removed|
+        @known_models.delete(removed)
+        Instrumentation.instrument(:publisher, action: :model_removed, model: removed)
+      end
+
+      current.each do |model|
+        next if @known_models.include?(model)
+
+        @known_models.add(model)
         Artery.model_info_class.ensure_initialized!(model)
         Instrumentation.instrument(:publisher, action: :model_started, model: model)
+      end
 
+      @last_discovery = Time.now
+    end
+
+    def discovery_due?
+      Time.now - @last_discovery >= DISCOVERY_INTERVAL
+    end
+
+    def process_model(model)
+      Artery.logger.tagged('Publisher', model) do
         loop do
           published = publish_batch(model)
-          sleep POLL_INTERVAL if published < BATCH_SIZE
+          break if published < BATCH_SIZE
         end
-      rescue StandardError => e
-        Instrumentation.instrument(:publisher, action: :error, model: model, error: e.message)
-        Artery.handle_error Error.new(
-          "Publisher error for #{model}: #{e.message}",
-          original_exception: e
-        )
-        sleep POLL_INTERVAL
-        retry
       end
+    rescue StandardError => e
+      Instrumentation.instrument(:publisher, action: :error, model: model, error: e.message)
+      Artery.handle_error Error.new(
+        "Publisher error for #{model}: #{e.message}",
+        original_exception: e
+      )
     ensure
-      @running_models.delete(model)
+      @busy_models&.delete(model)
     end
 
     def publish_batch(model)
