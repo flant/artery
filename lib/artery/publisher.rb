@@ -4,8 +4,8 @@ require 'concurrent'
 
 module Artery
   class Publisher
-    DISCOVERY_INTERVAL = 5
-    POLL_INTERVAL = 30
+    DISCOVERY_INTERVAL = 30
+    POLL_INTERVAL = 0.5
     BATCH_SIZE = 100
 
     def run
