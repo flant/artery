@@ -97,7 +97,51 @@ module Artery
         end
       end
 
+      def rewind_message_counter! # rubocop:disable Naming/PredicateMethod
+        local_index = latest_message_index
+        return false unless local_index.positive?
+
+        remote_index = request_publisher_latest_index!
+        return false unless remote_index.positive?
+        return false if remote_index >= local_index
+
+        Artery.logger.info(
+          "[artery] Rewinding #{uri} latest_index from #{local_index} to #{remote_index}"
+        )
+        info.update!(latest_index: remote_index)
+        true
+      end
+
       private
+
+      def request_publisher_latest_index!
+        route = Routing.uri(
+          service: uri.service,
+          model: uri.model,
+          plural: true,
+          action: :get_all
+        ).to_route
+
+        remote_index = nil
+
+        Artery.request(
+          route,
+          representation: representation_name,
+          scope: synchronize_updates_scope,
+          page: 0,
+          per_page: 1
+        ) do |on|
+          on.success do |data|
+            remote_index = data[:_index].to_i
+          end
+
+          on.error do |error|
+            raise Error, "Failed to fetch artery index for #{uri}: #{error.message}"
+          end
+        end
+
+        remote_index.to_i
+      end
 
       def run_synchronization_heartbeat
         return if @heartbeat_thread

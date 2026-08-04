@@ -10,19 +10,23 @@
 # Configuration parameters: AllowComments, AllowEmptyLambdas.
 Lint/EmptyBlock:
   Exclude:
-    - 'app/models/concerns/artery/message_model.rb'
-    - 'config/routes.rb'
+    - "app/models/concerns/artery/message_model.rb"
+    - "config/routes.rb"
 
 # Offense count: 2
 Lint/RescueException:
   Exclude:
-    - 'lib/artery/subscription/synchronization.rb'
+    - "lib/artery/subscription/synchronization.rb"
 
 # Offense count: 1
 # Configuration parameters: AllowedMethods, AllowedPatterns, CountRepeatedAttributes, Max.
 Metrics/AbcSize:
   Exclude:
-    - 'lib/artery/backends/nats_pure.rb'
+    - "lib/artery/backends/nats_pure.rb"
+
+Metrics/ModuleLength:
+  Exclude:
+    - "lib/artery/subscription/synchronization.rb"
 
 # Offense count: 4
 # Configuration parameters: CountComments, CountAsOne, AllowedMethods, AllowedPatterns, inherit_mode.
@@ -35,11 +39,11 @@ Metrics/BlockLength:
 # AllowedMethods: call
 Naming/PredicateMethod:
   Exclude:
-    - 'lib/artery/subscription.rb'
+    - "lib/artery/subscription.rb"
 
 # Offense count: 1
 # Configuration parameters: AllowedMethods.
 # AllowedMethods: respond_to_missing?
 Style/OptionalBooleanParameter:
   Exclude:
-    - 'lib/artery/subscription/synchronization.rb'
+    - "lib/artery/subscription/synchronization.rb"

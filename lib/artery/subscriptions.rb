@@ -37,6 +37,18 @@ module Artery
           s.synchronization_in_progress!(false)
         end
       end
+
+      def artery_rewind_message_counter!(service:) # rubocop:disable Naming/PredicateMethod
+        return false if artery_source_model?
+
+        subscriptions = artery[:subscriptions]&.select do |subscription|
+          subscription.uri.service.to_sym == service.to_sym && subscription.synchronize_updates?
+        end
+        return false if subscriptions.blank?
+
+        subscriptions.each(&:rewind_message_counter!)
+        true
+      end
     end
   end
 end
