@@ -28,6 +28,11 @@ module Artery
       @info ||= Artery.subscription_info_class.find_for_subscription(self)
     end
 
+    def reset_info!
+      @info = nil
+      self
+    end
+
     def representation_name
       options[:representation]
     end

@@ -1,6 +1,16 @@
 # frozen_string_literal: true
 
 RSpec.describe Artery::ActiveRecord::ModelInfo do
+  it 'returns 0 when no row exists' do
+    expect(described_class.last_published_id_for(:source)).to eq(0)
+  end
+
+  it 'returns last_published_id for the model' do
+    described_class.create!(model: 'source', latest_index: 0, last_published_id: 42)
+
+    expect(described_class.last_published_id_for(:source)).to eq(42)
+  end
+
   describe '.acquire_lock!' do
     context 'when no lock row exists' do
       it 'creates a new row and returns it' do
