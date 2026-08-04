@@ -20,7 +20,10 @@ module Artery
         end
 
         def latest_index(model)
-          where(model: model).maximum(:id).to_i
+          [
+            where(model: model).maximum(:id).to_i,
+            Artery.model_info_class.last_published_id_for(model)
+          ].max
         end
 
         def delete_old
