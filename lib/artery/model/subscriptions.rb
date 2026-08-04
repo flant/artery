@@ -51,6 +51,18 @@ module Artery
           artery_add_subscription Routing.uri(service: service, model: model, action: action), kwargs, &blk
         end
 
+        def artery_rewind_message_counter!(service:) # rubocop:disable Naming/PredicateMethod
+          return false if artery_source_model?
+
+          subscriptions = artery[:subscriptions]&.select do |subscription|
+            subscription.uri.service.to_sym == service.to_sym && subscription.synchronize_updates?
+          end
+          return false if subscriptions.blank?
+
+          subscriptions.each(&:rewind_message_counter!)
+          true
+        end
+
         # rubocop:disable Metrics/AbcSize,Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
         def artery_add_get_subscriptions
           artery_add_subscription Routing.uri(model: artery_model_name_plural, action: :get) do |data, reply, _sub|
