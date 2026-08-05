@@ -108,7 +108,7 @@ module Artery
         return false if remote_index >= local_index
 
         Artery.logger.info(
-          "[artery] Rewinding #{uri} latest_index from #{local_index} to #{remote_index}"
+          "Rewinding #{uri} latest_index from #{local_index} to #{remote_index}"
         )
         info.update!(latest_index: remote_index)
         true

@@ -33,7 +33,7 @@ module Artery
       end
 
       def self.last_published_id_for(model_name)
-        find_by(model: model_name)&.last_published_id.to_i
+        where(model: model_name).limit(1).pluck(:last_published_id).first.to_i
       end
     end
   end
