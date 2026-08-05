@@ -28,6 +28,11 @@ module Artery
       @info ||= Artery.subscription_info_class.find_for_subscription(self)
     end
 
+    def reset_info!
+      @info = nil
+      self
+    end
+
     def representation_name
       options[:representation]
     end
@@ -38,6 +43,14 @@ module Artery
 
     def source?
       @subscriber.artery[:source]
+    end
+
+    def client?
+      options[:client]
+    end
+
+    def rewindable?
+      client? && synchronize_updates?
     end
 
     def latest_outgoing_message_index

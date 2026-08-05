@@ -31,6 +31,10 @@ module Artery
 
         row
       end
+
+      def self.last_published_id_for(model_name)
+        where(model: model_name).limit(1).pluck(:last_published_id).first.to_i
+      end
     end
   end
 end

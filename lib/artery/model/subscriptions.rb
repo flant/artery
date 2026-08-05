@@ -48,7 +48,22 @@ module Artery
           model  ||= artery_model_name
           action ||= '*'
 
-          artery_add_subscription Routing.uri(service: service, model: model, action: action), kwargs, &blk
+          artery_add_subscription Routing.uri(service: service, model: model, action: action), **kwargs, client: true,
+                                  &blk
+        end
+
+        def artery_rewind_message_counter!(service: nil) # rubocop:disable Naming/PredicateMethod
+          return false if artery_source_model?
+
+          subscriptions = artery[:subscriptions]&.select do |subscription|
+            next false unless subscription.rewindable?
+
+            service.nil? || subscription.uri.service.to_sym == service.to_sym
+          end
+          return false if subscriptions.blank?
+
+          subscriptions.each(&:rewind_message_counter!)
+          true
         end
 
         # rubocop:disable Metrics/AbcSize,Metrics/MethodLength,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity

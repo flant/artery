@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    artery (1.4.2)
+    artery (1.4.3)
       artery-browser (~> 0.1)
       concurrent-ruby (~> 1.0)
       multiblock (~> 0.2)
@@ -163,11 +163,8 @@ GEM
     net-smtp (0.5.1)
       net-protocol
     nio4r (2.7.5)
-    nokogiri (1.18.10-arm64-darwin)
-      racc (~> 1.4)
-    nokogiri (1.18.10-x86_64-darwin)
-      racc (~> 1.4)
-    nokogiri (1.18.10-x86_64-linux-gnu)
+    nokogiri (1.18.10)
+      mini_portile2 (~> 2.8.2)
       racc (~> 1.4)
     overcommit (0.62.0)
       childprocess (>= 0.6.3, < 6)
@@ -285,9 +282,9 @@ GEM
     tsort (0.2.0)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
-    unicode-display_width (3.1.4)
-      unicode-emoji (~> 4.0, >= 4.0.4)
-    unicode-emoji (4.0.4)
+    unicode-display_width (3.2.0)
+      unicode-emoji (~> 4.1)
+    unicode-emoji (4.2.0)
     uri (1.1.1)
     useragent (0.16.11)
     webrick (1.9.1)
@@ -299,6 +296,7 @@ GEM
 
 PLATFORMS
   arm64-darwin-24
+  arm64-darwin-25
   x86_64-darwin-24
   x86_64-linux
 
