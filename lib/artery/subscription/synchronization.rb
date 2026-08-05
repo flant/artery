@@ -98,6 +98,8 @@ module Artery
       end
 
       def rewind_message_counter! # rubocop:disable Naming/PredicateMethod
+        return false unless rewindable?
+
         local_index = latest_message_index
         return false unless local_index.positive?
 

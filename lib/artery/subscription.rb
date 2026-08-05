@@ -45,6 +45,14 @@ module Artery
       @subscriber.artery[:source]
     end
 
+    def client?
+      options[:client]
+    end
+
+    def rewindable?
+      client? && synchronize_updates?
+    end
+
     def latest_outgoing_message_index
       return unless source?
 
