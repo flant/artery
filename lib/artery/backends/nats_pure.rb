@@ -16,7 +16,9 @@ module Artery
           client = ::NATS.connect(options)
 
           client.on_reconnect do
-            Artery::Instrumentation.instrument(:connection, state: :reconnected, server: client.connected_server)
+            Artery::Instrumentation.instrument(
+              :connection, state: :reconnected, server: sanitized_server(client.connected_server)
+            )
           end
 
           client.on_disconnect do
@@ -29,7 +31,9 @@ module Artery
           client
         end
 
-        Artery::Instrumentation.instrument(:connection, state: :connected, server: @client.connected_server)
+        Artery::Instrumentation.instrument(
+          :connection, state: :connected, server: sanitized_server(@client.connected_server)
+        )
         @client.connect unless @client.connected?
 
         @client
@@ -63,6 +67,18 @@ module Artery
       end
 
       private
+
+      # Returns server address without credentials, so they never reach instrumentation subscribers (logs).
+      def sanitized_server(server)
+        return server if server.nil?
+
+        uri = server.is_a?(URI::Generic) ? server.dup : URI.parse(server.to_s)
+        uri.password = nil
+        uri.user = nil
+        uri
+      rescue URI::InvalidURIError
+        nil
+      end
 
       def options
         options = {}
