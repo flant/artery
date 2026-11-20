@@ -27,6 +27,12 @@ $ rake artery:install:migrations
 $ rake db:migrate
 ```
 
+## Request errors
+
+If a subscription raises an unhandled exception, the worker reports it and runs the remaining subscriptions for that delivery. If no handler published to the request's reply inbox through `Artery.publish` during synchronous dispatch, the worker replies with `{"error":"internal_error"}`. The requester receives an `Artery::RequestError` through `on.error`.
+
+An explicit success or error reply takes precedence over this fallback. If all handlers finish normally without replying, the requester still waits for its timeout. Replies from other processes or asynchronous jobs are outside the worker's tracking scope.
+
 ## Publishing modes
 
 Artery supports two modes for publishing messages to NATS:
