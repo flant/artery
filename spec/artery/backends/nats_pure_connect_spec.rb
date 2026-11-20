@@ -34,6 +34,14 @@ describe Artery::Backends::NATSPure, '#connect' do
     expect(payloads.last[:server].to_s).to eq('nats://nats.infra:4222')
   end
 
+  it 'does not pass auth token given as user without password' do
+    allow(nats_client).to receive(:connected_server).and_return(URI.parse('nats://s3cr3t-token@nats.infra:4222'))
+
+    backend.connect
+
+    expect(payloads.first[:server].to_s).to eq('nats://nats.infra:4222')
+  end
+
   it 'does not modify the client server uri' do
     backend.connect
 
