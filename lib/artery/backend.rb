@@ -93,6 +93,7 @@ module Artery
 
       def publish(route, data)
         backend.publish(route, data.to_json)
+        PendingReply.published(route)
         Artery::Instrumentation.instrument(:publish, route: route, data: data)
       end
     end

@@ -13,6 +13,7 @@ require_relative 'multiblock_has_block'
 module Artery
   autoload :Config,        'artery/config'
   autoload :Publisher,     'artery/publisher'
+  autoload :PendingReply,  'artery/pending_reply'
   autoload :Worker,        'artery/worker'
   autoload :Sync,          'artery/sync'
   autoload :Check,         'artery/check'
