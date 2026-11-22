@@ -67,12 +67,14 @@ describe Artery::Worker do
   end
 
   it 'keeps overlapping deliveries independent' do
-    first = Fiber.new do
-      deliver(success, ->(_message) { Fiber.yield }, failure)
-    end
+    pause = ->(_message) { Fiber.yield }
+    first = Fiber.new { deliver(pause, success, failure) }
+    second = Fiber.new { deliver(pause, failure, reply: '_INBOX.other') }
+
     first.resume
-    deliver(failure, reply: '_INBOX.other')
+    second.resume
     first.resume
+    second.resume
 
     expect(backend).to have_received(:publish).with(inbox, '{"id":42}').once
     expect(backend).to have_received(:publish).with('_INBOX.other', '{"error":"internal_error"}').once
