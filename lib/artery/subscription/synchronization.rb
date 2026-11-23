@@ -83,17 +83,21 @@ module Artery
       def receive_all
         synchronization_in_progress! unless synchronization_in_progress?
 
-        Artery::Instrumentation.instrument(:sync, stage: :receive_all, route: uri.to_route) do
-          reset_latest_index!
-          while receive_all_once == :continue; end
+        reset_synchronization_on_failure do
+          Artery::Instrumentation.instrument(:sync, stage: :receive_all, route: uri.to_route) do
+            reset_latest_index!
+            while receive_all_once == :continue; end
+          end
         end
       end
 
       def receive_updates
         synchronization_in_progress!
 
-        Artery::Instrumentation.instrument(:sync, stage: :receive_updates, route: uri.to_route) do
-          while receive_updates_once == :continue; end
+        reset_synchronization_on_failure do
+          Artery::Instrumentation.instrument(:sync, stage: :receive_updates, route: uri.to_route) do
+            while receive_updates_once == :continue; end
+          end
         end
       end
 
@@ -157,8 +161,21 @@ module Artery
         end
       end
 
+      # The next synchronization in this process starts a new heartbeat thread.
       def stop_synchronization_heartbeat
         @heartbeat_thread&.exit
+        @heartbeat_thread = nil
+      end
+
+      # An exception that escapes the synchronization must not leave the subscription marked as synchronizing:
+      # the heartbeat of this process would keep the mark alive, and every process would skip the synchronization
+      # and the incoming messages of the subscription until this process exits. Only the mark set by this process
+      # is cleared.
+      def reset_synchronization_on_failure
+        yield
+      rescue StandardError
+        synchronization_in_progress!(false) if Artery.synchronizing_subscriptions.include?(self)
+        raise
       end
 
       def receive_all_once # rubocop:disable Metrics/AbcSize
