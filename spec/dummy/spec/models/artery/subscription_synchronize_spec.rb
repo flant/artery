@@ -48,6 +48,30 @@ RSpec.describe Artery::Subscription, '#synchronize!' do
     end
   end
 
+  context 'when the synchronization is interrupted' do
+    let(:response) { ->(_handler) { raise Interrupt } }
+
+    it 'clears the synchronization mark and raises' do
+      expect { synchronize }.to raise_error(Interrupt)
+
+      expect(info.reload.synchronization_in_progress).to be(false)
+    end
+  end
+
+  context 'when the request for updates raises' do
+    before do
+      info.update!(latest_index: 3)
+      allow(subscription).to receive(:synchronize_updates?).and_return(true)
+    end
+
+    it 'clears the synchronization mark and raises' do
+      expect { synchronize }.to raise_error(NATS::IO::NoRespondersError)
+
+      expect(Artery).to have_received(:request).with('test.sources.get_updates', hash_including(after_index: 3))
+      expect(info.reload).to have_attributes(synchronization_in_progress: false, latest_index: 3)
+    end
+  end
+
   context 'when nobody listens on the route' do
     let(:response) do
       lambda do |handler|
@@ -94,6 +118,18 @@ RSpec.describe Artery::Subscription, '#synchronize!' do
 
       expect(Artery).to have_received(:request).twice
       expect(info.reload).to have_attributes(synchronization_in_progress: false, latest_index: 5)
+    end
+
+    it 'starts a heartbeat thread for each synchronization' do
+      started = []
+      allow(Thread).to receive(:new).and_wrap_original do |original, *args, &block|
+        original.call(*args, &block).tap { |thread| started << thread }
+      end
+
+      expect { subscription.synchronize! }.to raise_error(NATS::IO::NoRespondersError)
+      subscription.synchronize!
+
+      expect(started.size).to eq(2)
     end
   end
 end

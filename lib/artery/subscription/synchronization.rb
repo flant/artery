@@ -170,10 +170,11 @@ module Artery
       # An exception that escapes the synchronization must not leave the subscription marked as synchronizing:
       # the heartbeat of this process would keep the mark alive, and every process would skip the synchronization
       # and the incoming messages of the subscription until this process exits. Only the mark set by this process
-      # is cleared.
+      # is cleared. Exception covers interruptions too: Interrupt on Ctrl-C during artery_resync! in a console
+      # and Timeout::ExitException leave the process running, and its heartbeat with it.
       def reset_synchronization_on_failure
         yield
-      rescue StandardError
+      rescue Exception
         synchronization_in_progress!(false) if Artery.synchronizing_subscriptions.include?(self)
         raise
       end
