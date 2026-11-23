@@ -48,19 +48,7 @@ module Artery
           subscriptions_on_services.each do |uri, subscriptions|
             Artery::Instrumentation.instrument(:worker, action: :subscribing, route: uri.to_s)
             Artery.subscribe uri.to_route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
-              subscriptions.each do |subscription|
-                message = Subscription::IncomingMessage.new subscription, data, reply, from
-
-                subscription.handle(message)
-              rescue StandardError => e
-                Artery.handle_error Error.new("Error in subscription handling: #{e.inspect}",
-                                              original_exception: e,
-                                              subscription: {
-                                                subscriber: subscription.subscriber.to_s,
-                                                route: from,
-                                                data: data.to_json
-                                              })
-              end
+              dispatch(subscriptions, data, reply, from)
             end
           end
         rescue StandardError => e
@@ -72,6 +60,31 @@ module Artery
           Artery.handle_error Error.new('Worker failed 5 times and exited.')
         end
       end
+    end
+
+    def dispatch(subscriptions, data, reply, from)
+      failed = false
+      unanswered = PendingReply.unanswered?(reply) do
+        subscriptions.each do |subscription|
+          message = Subscription::IncomingMessage.new(subscription, data, reply, from)
+          subscription.handle(message)
+        rescue StandardError => e
+          failed = true
+          Artery.handle_error Error.new("Error in subscription handling: #{e.inspect}",
+                                        original_exception: e,
+                                        subscription: {
+                                          subscriber: subscription.subscriber.to_s, route: from, data: data.to_json
+                                        })
+        end
+      end
+      publish_error_reply(reply, from) if failed && unanswered
+    end
+
+    def publish_error_reply(reply, from)
+      Artery.publish(reply, error: 'internal_error')
+    rescue StandardError => e
+      Artery.handle_error Error.new("Error publishing subscription error reply: #{e.inspect}",
+                                    original_exception: e, subscription: { route: from })
     end
   end
 end
