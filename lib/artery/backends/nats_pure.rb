@@ -60,6 +60,8 @@ module Artery
         yield response.data
       rescue ::NATS::Timeout
         yield(TimeoutError.new(request: { route: route, data: data }))
+      rescue ::NATS::IO::NoRespondersError
+        yield(NoRespondersError.new("No responders for #{route}", request: { route: route, data: data }))
       end
 
       def publish(route, data)

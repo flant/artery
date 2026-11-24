@@ -31,6 +31,9 @@ module Artery
 
   class TimeoutError < Error; end
 
+  # Nobody listens on the requested route, for example while the service that answers it is being deployed.
+  class NoRespondersError < Error; end
+
   class FormatError < Error
     attr_accessor :route, :msg
 
