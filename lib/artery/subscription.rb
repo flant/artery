@@ -57,15 +57,13 @@ module Artery
 
     # Routes of the publishing service this subscription requests, for the permissions of the service.
     def requested_routes
-      actions = []
-      actions << :get if enriches?
-      actions << :get_updates if receives_updates?
-      actions << :get_all if synchronize? || rewindable?
-      # Enrichment requests the model of each message, so a wildcard model stays a wildcard there.
-      actions.map do |action|
-        plural = action != :get || uri.model.to_s != '*'
-        Routing.uri(service: uri.service, model: uri.model, plural: plural, action: action).to_route
-      end
+      routes = []
+      # A message delivered directly is enriched by its own model, so a wildcard model stays a wildcard.
+      routes << requested_route(:get, plural: uri.model.to_s != '*') if enriches_delivered?
+      routes << requested_route(:get) if handles_records? && receives_updates?
+      routes << requested_route(:get_updates) if receives_updates?
+      routes << requested_route(:get_all) if synchronize? || rewindable?
+      routes.uniq
     end
 
     def latest_outgoing_message_index
@@ -129,10 +127,17 @@ module Artery
 
     protected
 
+    def requested_route(action, plural: true)
+      Routing.uri(service: uri.service, model: uri.model, plural: plural, action: action).to_route
+    end
+
     # #handle enriches a create or update without attributes, delivered directly or by #receive_updates.
-    def enriches?
-      %i[create update _default].any? { |name| handler.has_block?(name) } &&
-        (ENRICHED_ACTIONS.include?(uri.action) || receives_updates?)
+    def handles_records?
+      %i[create update _default].any? { |name| handler.has_block?(name) }
+    end
+
+    def enriches_delivered?
+      handles_records? && ENRICHED_ACTIONS.include?(uri.action)
     end
 
     # #synchronize! skips subscriptions on the service itself, comparing the names as it does.

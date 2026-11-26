@@ -9,7 +9,7 @@ describe Artery::Permissions do
     instance_double(Artery::Subscription, uri: Artery::Routing.uri(service: :bush, model: :user, action: '*'),
                                           requested_routes: %w[bush.users.get_updates bush.users.get])
   end
-  let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: '_INBOX.test', auth_user: nil) }
+  let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: '_INBOX.test') }
 
   before do
     stub_const('Artery::Check::ESSENTIAL_SERVICES', %w[billing])
@@ -47,7 +47,7 @@ describe Artery::Permissions do
     it { is_expected.to eq(%w[_INBOX.test.> bush.user.* test.healthz.check test.healthz.worker test.sources.get]) }
 
     context 'without inbox prefix' do
-      let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: nil, auth_user: nil) }
+      let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: nil) }
 
       it { is_expected.to include('_INBOX.>') }
     end
@@ -88,8 +88,8 @@ describe Artery::Permissions do
       it { is_expected.to include(%("password": $_2FA_PASSWORD_HASH)) }
     end
 
-    context 'with a NATS user of password authentication' do
-      let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: nil, auth_user: 'billing_nats') }
+    context 'with a user name' do
+      subject { described_class.new.to_nats_user(user: 'billing_nats') }
 
       it { is_expected.to include(%("user": "billing_nats")) }
     end

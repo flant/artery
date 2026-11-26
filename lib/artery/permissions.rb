@@ -34,14 +34,14 @@ module Artery
 
     # A user entry of the `authorization.users` list of nats.conf. The password is a reference to a variable
     # holding its bcrypt hash, so no secret is printed.
-    def to_nats_user(password_variable: nil)
+    def to_nats_user(password_variable: nil, user: nil)
       password_variable ||= "#{service.upcase.gsub(/[^A-Z0-9]/, '_').sub(/\A(?=\d)/, '_')}_PASSWORD_HASH"
       unless VARIABLE_NAME.match?(password_variable)
         raise ArgumentError, "Invalid password variable name: #{password_variable.inspect}"
       end
 
       JSON.pretty_generate(
-        user: Artery.backend.auth_user || service,
+        user: user.presence || service,
         password: VariableReference.new(password_variable),
         permissions: { publish: { allow: publish }, subscribe: { allow: subscribe } }
       )

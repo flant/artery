@@ -9,9 +9,6 @@ module Artery
         @config = config
       end
 
-      # User name of password authentication; nil for token authentication or none.
-      def auth_user; end
-
       # Prefix of the inboxes that receive replies to requests; nil keeps the default of the client library.
       # Restricted NATS users may subscribe only to inboxes of their own service.
       def inbox_prefix

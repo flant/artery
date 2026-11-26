@@ -52,7 +52,15 @@ describe Artery::Subscription, '#requested_routes' do
     let(:handled_action) { :_default }
     let(:options) { {} }
 
-    it { is_expected.to eq(%w[bush.*.get bush.*s.get_updates]) }
+    it { is_expected.to eq(%w[bush.*.get bush.*s.get bush.*s.get_updates]) }
+  end
+
+  context 'when it watches deletions of every model of another service' do
+    let(:uri) { Artery::Routing.uri(service: :bush, model: '*', action: :delete) }
+    let(:handled_action) { :_default }
+    let(:options) { {} }
+
+    it { is_expected.to eq(%w[bush.*s.get bush.*s.get_updates]) }
   end
 
   context 'when it names the service itself by a string' do
