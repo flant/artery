@@ -17,7 +17,8 @@ describe Artery::Backends::NATSPure, '#connect' do
   end
 
   context 'when the server denies a publish' do
-    let(:reported_error) { having_attributes(class: Artery::PermissionError, artery_context: { subject: 'forbidden.thing' }) }
+    let(:route) { 'forbidden.thing' }
+    let(:reported_error) { having_attributes(class: Artery::PermissionError, artery_context: { subject: route }) }
 
     before do
       client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"'))
@@ -63,7 +64,8 @@ describe Artery::Backends::NATSPure, '#connect' do
   end
 
   context 'when the server denies a subscription' do
-    let(:reported_error) { having_attributes(class: Artery::PermissionError, artery_context: { subject: '_INBOX.other.>' }) }
+    let(:inbox) { '_INBOX.other.>' }
+    let(:reported_error) { having_attributes(class: Artery::PermissionError, artery_context: { subject: inbox }) }
 
     before do
       client.send(:process_err, %('Permissions Violation for Subscription to "_INBOX.other.>"'))
