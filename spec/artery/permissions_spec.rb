@@ -39,6 +39,15 @@ describe Artery::Permissions do
     end
 
     it { is_expected.to eq(routes) }
+
+    context 'with a subscription to every service' do
+      let(:watch_subscription) do
+        instance_double(Artery::Subscription, uri: Artery::Routing.uri(service: '*', model: :user, action: '*'),
+                                              requested_routes: [])
+      end
+
+      it { is_expected.not_to include('*.healthz.check') }
+    end
   end
 
   describe '#subscribe' do

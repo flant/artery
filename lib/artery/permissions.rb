@@ -53,9 +53,11 @@ module Artery
       Artery.subscriptions || {}
     end
 
-    # `artery-check` requests the essential services, or every service it subscribes to when none is set.
+    # Services whose health checks the service may request: itself, `Check::ESSENTIAL_SERVICES` (the default
+    # list of `Check#execute`) and the services of its subscriptions (checked when the list is empty, as
+    # `artery-check` without arguments does). A wildcard service names no service to check.
     def healthz_services
-      [service] + Artery::Check::ESSENTIAL_SERVICES + subscriptions.keys.map(&:service)
+      [service] + Artery::Check::ESSENTIAL_SERVICES + subscriptions.keys.map(&:service).reject { |name| name.to_s == '*' }
     end
 
     def normalize(routes)
