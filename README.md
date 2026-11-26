@@ -33,6 +33,15 @@ If a subscription raises an unhandled exception, the worker reports it and runs 
 
 An explicit success or error reply takes precedence over this fallback. If all handlers finish normally without replying, the requester still waits for its timeout. Replies from other processes or asynchronous jobs are outside the worker's tracking scope.
 
+## NATS permissions
+
+Artery works with NATS users whose permissions allow only the subjects of their service.
+
+- Replies to `Artery.request` arrive on inbox subjects under `_INBOX.<service_name>`, or under `_INBOX` if `service_name` is not configured. Set `ARTERY_INBOX_PREFIX` (or `inbox_prefix` in `backend_config`) to use another prefix. A restricted user needs `subscribe` on `<prefix>.>` to receive replies and `publish` on `_INBOX.>` to answer requests.
+- When the server denies a publish or a subscription, the connection stays open. The error is logged and reported through the error handler as `Artery::PermissionError` with the denied subject in its context. Other errors from the server are reported as `Artery::BackendError`.
+- A request to a denied subject fails with `Artery::TimeoutError` after the request timeout.
+- On start, the worker waits until the server has processed its subscriptions, so a denied subscription is reported right away.
+
 ## Publishing modes
 
 Artery supports two modes for publishing messages to NATS:
@@ -101,7 +110,7 @@ end
 | `debug` | Message payloads (request, publish, received, response), skip reasons, sync page details |
 | `info` | Lifecycle events: backend connected/reconnected, worker started, sync started/completed |
 | `warn` | Backend disconnected, request errors, no subscriptions defined |
-| `error` | Exception handling (via `ErrorHandler`/`SentryErrorHandler`) |
+| `error` | Exception handling (via `ErrorHandler`/`SentryErrorHandler`), errors sent by the backend server |
 
 ### Request-scoped tagging
 
@@ -144,6 +153,7 @@ Available events (each uses a `stage:`, `state:`, or `action:` payload key to di
 | | | `:disconnected` | — | Disconnected from backend |
 | | | `:reconnected` | `server` | Reconnected to backend |
 | | | `:closed` | — | Connection closed |
+| | | `:error` | `error`, `subject` | Error sent by the server; `subject` is set for a denied publish or subscription |
 | `worker.artery` | `action` | `:started` | `worker_id` | Worker started |
 | | | `:subscribing` | `route` | Subscribing to route |
 | `lock.artery` | `state` | `:waiting` | `latest_index` | Waiting for subscription lock |

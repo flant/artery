@@ -18,6 +18,8 @@ module Artery
         yield if block_given?
       end
 
+      def flush(*_args); end
+
       def stop(*_args); end
     end
   end

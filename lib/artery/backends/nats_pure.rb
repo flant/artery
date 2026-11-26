@@ -5,6 +5,23 @@ require 'nats/client'
 module Artery
   module Backends
     class NATSPure < Base
+      PERMISSIONS_VIOLATION = /'Permissions Violation/i.freeze
+      DENIED_SUBJECT = /Permissions Violation for .*? (?:to|of) "([^"]*)"/i.freeze
+
+      # nats-pure (2.0-2.8) treats every -ERR from a server with authentication as an authentication error:
+      # it drops the connection and removes the server from the pool once a reconnect attempt fails,
+      # so a single denied publish or subscription can close the client for good. nats-server keeps the
+      # connection open after a permissions violation, so only the error callback is called, as nats.go does.
+      module PermissionViolationHandling
+        private
+
+        def process_err(err)
+          return super unless PERMISSIONS_VIOLATION.match?(err.to_s)
+
+          err_cb_call(self, ::NATS::IO::ServerError.new(err), nil)
+        end
+      end
+
       def client
         @client || connect
       end
@@ -14,6 +31,9 @@ module Artery
       def connect
         @client ||= begin
           client = ::NATS.connect(options)
+          client.extend(PermissionViolationHandling)
+
+          client.on_error { |_nc, error, _sub| report_error(error) }
 
           client.on_reconnect do
             Artery::Instrumentation.instrument(
@@ -68,7 +88,32 @@ module Artery
         client.publish route, data
       end
 
+      def flush(timeout = 5)
+        client.flush(timeout)
+      end
+
       private
+
+      # Reports errors sent by the server. Network errors are left to the disconnect and reconnect events.
+      # Runs in the reading thread of nats-pure: an exception here would make it reconnect.
+      def report_error(error)
+        return unless error.is_a?(::NATS::IO::ServerError) || error.is_a?(::NATS::IO::AuthError)
+
+        message = error.message.to_s
+        subject = message[DENIED_SUBJECT, 1]
+        Artery::Instrumentation.instrument(:connection, state: :error, error: message, subject: subject)
+
+        error_class = PERMISSIONS_VIOLATION.match?(message) ? PermissionError : BackendError
+        Artery.handle_error error_class.new("NATS server error: #{message}",
+                                            original_exception: error, subject: subject)
+      rescue StandardError => e
+        Artery.logger.error "Failed to report NATS error #{error.inspect}: #{e.inspect}"
+      end
+
+      # Restricted NATS users may subscribe only to inboxes of their own service.
+      def inbox_prefix
+        config[:inbox_prefix].presence || ("_INBOX.#{Artery.service_name}" if Artery.service_name?)
+      end
 
       # Returns server address without credentials, so they never reach instrumentation subscribers (logs).
       def sanitized_server(server)
@@ -91,6 +136,7 @@ module Artery
 
         options[:reconnect_time_wait]    = config[:reconnect_timeout]  unless config[:reconnect_timeout].blank?
         options[:max_reconnect_attempts] = config[:reconnect_attempts] unless config[:reconnect_attempts].blank?
+        options[:custom_inbox_prefix]    = inbox_prefix if inbox_prefix
 
         if ENV.key?('NATS_URL')
           options[:servers] ||= []

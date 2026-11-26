@@ -59,7 +59,16 @@ module Artery
 
           Artery.handle_error Error.new('Worker failed 5 times and exited.')
         end
+
+        confirm_subscriptions
       end
+    end
+
+    # Makes a denied subscription surface on start: its error arrives before the server confirms the flush.
+    def confirm_subscriptions
+      Artery.backend.flush
+    rescue StandardError => e
+      Artery.handle_error Error.new("WORKER ERROR: subscriptions not confirmed: #{e.inspect}", original_exception: e)
     end
 
     def dispatch(subscriptions, data, reply, from)

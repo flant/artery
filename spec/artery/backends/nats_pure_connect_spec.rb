@@ -8,6 +8,7 @@ describe Artery::Backends::NATSPure, '#connect' do
   let(:payloads) { [] }
   let(:nats_client) do
     instance_double(NATS::Client, connected_server: server_uri, connected?: true).tap do |client|
+      allow(client).to receive(:on_error)
       allow(client).to receive(:on_reconnect) { |&block| handlers[:reconnect] = block }
       allow(client).to receive(:on_disconnect)
       allow(client).to receive(:on_close)
@@ -62,5 +63,38 @@ describe Artery::Backends::NATSPure, '#connect' do
     backend.connect
 
     expect(payloads.first[:server].to_s).to eq('nats://nats.infra:4222')
+  end
+
+  context 'when connected' do
+    before do
+      backend.connect
+    end
+
+    it 'receives replies under the inbox prefix of the service' do
+      expect(NATS).to have_received(:connect).with(hash_including(custom_inbox_prefix: '_INBOX.test'))
+    end
+  end
+
+  context 'when connected with configured inbox prefix' do
+    subject(:backend) { described_class.new(inbox_prefix: '_INBOX.custom') }
+
+    before do
+      backend.connect
+    end
+
+    it 'receives replies under the configured prefix' do
+      expect(NATS).to have_received(:connect).with(hash_including(custom_inbox_prefix: '_INBOX.custom'))
+    end
+  end
+
+  context 'when connected without service name' do
+    before do
+      allow(Artery).to receive(:service_name?).and_return(false)
+      backend.connect
+    end
+
+    it 'keeps the default inbox prefix of nats-pure' do
+      expect(NATS).to have_received(:connect).with(hash_excluding(:custom_inbox_prefix))
+    end
   end
 end

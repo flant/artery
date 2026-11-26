@@ -45,6 +45,7 @@ module Artery
       when :disconnected then warn '[Backend] disconnected'
       when :reconnected  then info "[Backend] reconnected to #{p[:server]}"
       when :closed       then info '[Backend] connection closed'
+      when :error        then error "[Backend] #{p[:error]}"
       end
     end
 

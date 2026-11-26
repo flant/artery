@@ -6,7 +6,7 @@ describe Artery::Backends::NATSPure, '#request' do
   let(:errors) { [] }
 
   before do
-    allow(nats_client).to receive_messages(on_reconnect: nil, on_disconnect: nil, on_close: nil)
+    allow(nats_client).to receive_messages(on_error: nil, on_reconnect: nil, on_disconnect: nil, on_close: nil)
     allow(NATS).to receive(:connect).and_return(nats_client)
     allow(Artery).to receive(:backend).and_return(backend)
   end

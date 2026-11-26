@@ -26,6 +26,10 @@ module Artery
           @service_name || raise('Artery service_name must be configured!')
         end
 
+        def service_name?
+          @service_name.present?
+        end
+
         def logger
           @logger || (self.logger = defined?(Rails) ? Rails.logger : Logger.new($stdout))
         end
@@ -63,7 +67,8 @@ module Artery
             user: ENV.fetch('ARTERY_USER', nil),
             password: ENV.fetch('ARTERY_PASSWORD', nil),
             reconnect_timeout: ENV.fetch('ARTERY_RECONNECT_TIMEOUT', '1').to_i,
-            reconnect_attempts: ENV.fetch('ARTERY_RECONNECT_ATTEMPTS', '10').to_i
+            reconnect_attempts: ENV.fetch('ARTERY_RECONNECT_ATTEMPTS', '10').to_i,
+            inbox_prefix: ENV.fetch('ARTERY_INBOX_PREFIX', nil)
           }
         end
 

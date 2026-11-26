@@ -15,6 +15,7 @@ describe Artery::Worker do
     allow(Artery::Sync).to receive(:new).and_return(instance_double(Artery::Sync, execute: nil))
     allow(backend).to receive(:start).and_yield
     allow(backend).to receive(:publish)
+    allow(backend).to receive(:flush)
   end
 
   def deliver(*handlers, reply: inbox)
@@ -100,6 +101,28 @@ describe Artery::Worker do
 
     expect(Artery).to have_received(:handle_error).with(described_class::Error)
     expect(backend).not_to have_received(:publish)
+  end
+
+  context 'when subscribed' do
+    before do
+      deliver(success)
+    end
+
+    it 'waits for the server to confirm subscriptions' do
+      expect(backend).to have_received(:flush)
+    end
+  end
+
+  context 'when the server does not confirm subscriptions' do
+    before do
+      allow(backend).to receive(:flush).and_raise(NATS::IO::Timeout)
+      deliver(success)
+    end
+
+    it 'reports the failure without subscribing again', :aggregate_failures do
+      expect(backend).to have_received(:subscribe).once
+      expect(Artery).to have_received(:handle_error).with(described_class::Error)
+    end
   end
 
   it 'reports failure to publish the fallback without re-running subscriptions' do

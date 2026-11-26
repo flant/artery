@@ -33,6 +33,11 @@ module Artery
         raise NotImplementedError
       end
 
+      # Blocks until the server has processed everything sent before, so its errors have been received.
+      def flush(*_args)
+        raise NotImplementedError
+      end
+
       def stop(*_args)
         raise NotImplementedError
       end
