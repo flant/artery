@@ -12,15 +12,11 @@ module Artery
       loaders = Rails.autoloaders if Rails.respond_to?(:autoloaders)
       zeitwerk = loaders && (!loaders.respond_to?(:zeitwerk_enabled?) || loaders.zeitwerk_enabled?)
       if zeitwerk && loaders.main.respond_to?(:on_unload)
-        # A class defined in the file of its namespace is unloaded with the namespace.
-        loaders.main.on_unload do |cpath, value, _abspath|
-          Artery.models.select { |model| model.equal?(value) || model.name.to_s.start_with?("#{cpath}::") }
-                .each { |model| Artery.unregister_model(model) }
-        end
+        loaders.main.on_unload { |cpath, value, _abspath| Artery.unregister_unloaded(cpath, value) }
       elsif !zeitwerk && app.respond_to?(:reloader)
         app.reloader.before_class_unload do
           ActiveSupport::Dependencies.autoloaded_constants.each do |name|
-            Artery.unregister_model(name.safe_constantize)
+            Artery.unregister_unloaded(name, name.safe_constantize)
           end
         end
       end

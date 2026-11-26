@@ -62,7 +62,7 @@ end
 
 Subscriptions made with `Artery.subscribe` outside models are not included, apart from the health checks of Artery itself.
 
-The user is the one Artery connects as (`ARTERY_USER`), or the service name. The password is a reference to a variable holding its bcrypt hash, `$<SERVICE>_PASSWORD_HASH` by default; pass another name as the task argument. Routes are sorted and unique, so the output can be compared with the configuration by a diff. Run the task with `ARTERY_USER` and `ARTERY_CHECK_ESSENTIAL_SERVICES` set as in the deployment.
+The user is the one Artery connects as with a password (`ARTERY_USER` with `ARTERY_PASSWORD`, or the server address), otherwise the service name; a token is never printed. The password is a reference to a variable holding its bcrypt hash, `$<SERVICE>_PASSWORD_HASH` by default; pass another name as the task argument. Routes are sorted and unique, so the output can be compared with the configuration by a diff. Run the task with `ARTERY_USER` and `ARTERY_CHECK_ESSENTIAL_SERVICES` set as in the deployment.
 
 When a source model is removed or renamed, keep its old route until the old processes are stopped and the publisher has sent the messages already queued for it.
 

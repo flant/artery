@@ -55,6 +55,12 @@ module Artery
       model_registry[model.name || model] = model
     end
 
+    # Forgets the models unloaded with a constant: the constant itself and classes defined in its file.
+    def unregister_unloaded(name, value)
+      models.select { |model| model.equal?(value) || model.name.to_s.start_with?("#{name}::") }
+            .each { |model| unregister_model(model) }
+    end
+
     # Forgets a class unloaded by code reloading, with its subscriptions.
     def unregister_model(model)
       model_registry.delete_if { |_key, registered| registered.equal?(model) }

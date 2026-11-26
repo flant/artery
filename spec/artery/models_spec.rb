@@ -34,6 +34,17 @@ describe Artery, '.models' do
     it { is_expected.not_to include(previous_charge) }
   end
 
+  context 'when the namespace a model is defined in is unloaded' do
+    let(:namespace) { class_double(Source, name: 'Archive') }
+
+    before do
+      described_class.register_model(previous_charge)
+      described_class.unregister_unloaded('Archive', namespace)
+    end
+
+    it { is_expected.not_to include(previous_charge) }
+  end
+
   context 'when a model with subscriptions is unloaded' do
     subject(:subscriptions) { described_class.subscriptions }
 

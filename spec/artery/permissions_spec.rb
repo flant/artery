@@ -87,8 +87,25 @@ describe Artery::Permissions do
       it { is_expected.to include(%("password": $_2FA_PASSWORD_HASH)) }
     end
 
-    context 'with a configured NATS user' do
-      let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: nil, config: { user: 'billing_nats' }) }
+    context 'with a configured NATS user and password' do
+      let(:backend) do
+        instance_double(Artery::Backends::NATSPure, inbox_prefix: nil, config: { user: 'billing_nats', password: 'x' })
+      end
+
+      it { is_expected.to include(%("user": "billing_nats")) }
+    end
+
+    context 'with a token configured as the NATS user' do
+      let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: nil, config: { user: 's3cr3t' }) }
+
+      it { is_expected.not_to include('s3cr3t') }
+    end
+
+    context 'with the NATS user in the server address' do
+      let(:backend) do
+        instance_double(Artery::Backends::NATSPure, inbox_prefix: nil,
+                                                    config: { servers: ['nats://billing_nats:x@nats:4222'] })
+      end
 
       it { is_expected.to include(%("user": "billing_nats")) }
     end

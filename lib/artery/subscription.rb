@@ -61,8 +61,9 @@ module Artery
       actions << :get if enriches?
       actions << :get_updates if receives_updates?
       actions << :get_all if synchronize? || rewindable?
+      # A wildcard model stays a wildcard, the requests name the model of each message.
       actions.map do |action|
-        Routing.uri(service: uri.service, model: uri.model, plural: true, action: action).to_route
+        Routing.uri(service: uri.service, model: uri.model, plural: uri.model.to_s != '*', action: action).to_route
       end
     end
 
