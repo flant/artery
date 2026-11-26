@@ -79,6 +79,14 @@ describe Artery::Permissions do
       it { is_expected.to include(%("password": $KIBANA_ELASTICSEARCH_PASSWORD_HASH)) }
     end
 
+    context 'with a service name starting with a digit' do
+      before do
+        allow(Artery).to receive(:service_name).and_return(:'2fa')
+      end
+
+      it { is_expected.to include(%("password": $_2FA_PASSWORD_HASH)) }
+    end
+
     context 'with a configured NATS user' do
       let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: nil, config: { user: 'billing_nats' }) }
 

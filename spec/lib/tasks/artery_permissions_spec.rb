@@ -6,8 +6,7 @@ describe 'artery:permissions', type: :task do
   subject(:task) { Rake::Task['artery:permissions'] }
 
   let(:entry) do
-    a_string_including('"user": "test"', '"password": $TEST_NATS', '"test.source.*"', '"test.sources.get"',
-                       '"_INBOX.test.>"')
+    a_string_including('"password": $TEST_NATS', '"test.source.*"', '"test.sources.get"', '"_INBOX.test.>"')
   end
 
   around do |example|

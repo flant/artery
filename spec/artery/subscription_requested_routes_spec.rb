@@ -39,6 +39,21 @@ describe Artery::Subscription, '#requested_routes' do
     it { is_expected.to include('bush.users.get_all') }
   end
 
+  context 'when it watches every subject below the model' do
+    let(:uri) { Artery::Routing.uri(service: :bush, model: :user, action: '>') }
+    let(:handled_action) { :_default }
+    let(:options) { { synchronize_updates: false } }
+
+    it { is_expected.to eq(%w[bush.users.get]) }
+  end
+
+  context 'when it names the service itself by a string' do
+    let(:uri) { Artery::Routing.uri(service: 'test', model: :source, action: '*') }
+    let(:options) { {} }
+
+    it { is_expected.to eq(%w[test.sources.get test.sources.get_updates]) }
+  end
+
   context 'when it watches the service itself' do
     let(:uri) { Artery::Routing.uri(model: :source, action: '*') }
     let(:options) { {} }

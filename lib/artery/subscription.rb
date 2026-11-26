@@ -9,7 +9,7 @@ module Artery
 
     attr_accessor :uri, :subscriber, :handler, :options
 
-    ENRICHED_ACTIONS = %i[* create update].freeze
+    ENRICHED_ACTIONS = %i[* > create update].freeze
 
     DEFAULTS = {
       synchronize: false,
@@ -133,9 +133,9 @@ module Artery
         (ENRICHED_ACTIONS.include?(uri.action) || receives_updates?)
     end
 
-    # #synchronize! skips subscriptions on the service itself.
+    # #synchronize! skips subscriptions on the service itself, comparing the names as it does.
     def receives_updates?
-      synchronize_updates? && uri.service.to_s != Artery.service_name.to_s
+      synchronize_updates? && uri.service != Artery.service_name
     end
 
     def validate_index(message)
