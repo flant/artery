@@ -34,9 +34,8 @@ module Artery
       end
 
       # Blocks until the server has processed everything sent before, so its errors have been received.
-      def flush(*_args)
-        raise NotImplementedError
-      end
+      # A no-op by default, so that backends written before it keep working.
+      def flush(*_args); end
 
       def stop(*_args)
         raise NotImplementedError

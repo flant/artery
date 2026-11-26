@@ -18,7 +18,9 @@ module Artery
         def process_err(err)
           return super unless PERMISSIONS_VIOLATION.match?(err.to_s)
 
-          err_cb_call(self, ::NATS::IO::ServerError.new(err), nil)
+          error = ::NATS::IO::ServerError.new(err)
+          synchronize { @last_err = error }
+          err_cb_call(self, error, nil)
         end
       end
 
@@ -26,7 +28,7 @@ module Artery
         @client || connect
       end
 
-      delegate :connected?, :connecting?, :subscribe, to: :client
+      delegate :connected?, :connecting?, :subscribe, :flush, to: :client
 
       def connect
         @client ||= begin
@@ -88,10 +90,6 @@ module Artery
         client.publish route, data
       end
 
-      def flush(timeout = 5)
-        client.flush(timeout)
-      end
-
       private
 
       # Reports errors sent by the server. Network errors are left to the disconnect and reconnect events.
@@ -99,6 +97,8 @@ module Artery
       def report_error(error)
         return unless error.is_a?(::NATS::IO::ServerError) || error.is_a?(::NATS::IO::AuthError)
 
+        # nats-pure passes these errors unraised, and error handlers need a backtrace.
+        error.set_backtrace(caller) unless error.backtrace
         message = error.message.to_s
         subject = message[DENIED_SUBJECT, 1]
         Artery::Instrumentation.instrument(:connection, state: :error, error: message, subject: subject)
@@ -112,7 +112,8 @@ module Artery
 
       # Restricted NATS users may subscribe only to inboxes of their own service.
       def inbox_prefix
-        config[:inbox_prefix].presence || ("_INBOX.#{Artery.service_name}" if Artery.service_name?)
+        config[:inbox_prefix].presence || ENV['ARTERY_INBOX_PREFIX'].presence ||
+          ("_INBOX.#{Artery.service_name}" if Artery.service_name?)
       end
 
       # Returns server address without credentials, so they never reach instrumentation subscribers (logs).

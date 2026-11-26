@@ -67,8 +67,7 @@ module Artery
             user: ENV.fetch('ARTERY_USER', nil),
             password: ENV.fetch('ARTERY_PASSWORD', nil),
             reconnect_timeout: ENV.fetch('ARTERY_RECONNECT_TIMEOUT', '1').to_i,
-            reconnect_attempts: ENV.fetch('ARTERY_RECONNECT_ATTEMPTS', '10').to_i,
-            inbox_prefix: ENV.fetch('ARTERY_INBOX_PREFIX', nil)
+            reconnect_attempts: ENV.fetch('ARTERY_RECONNECT_ATTEMPTS', '10').to_i
           }
         end
 

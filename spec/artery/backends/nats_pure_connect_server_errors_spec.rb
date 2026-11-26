@@ -33,6 +33,22 @@ describe Artery::Backends::NATSPure, '#connect' do
     it 'reports the denied subject' do
       expect(Artery).to have_received(:handle_error).with(reported_error)
     end
+
+    it 'keeps the error as the last one of the client' do
+      expect(client.last_error).to be_a(NATS::IO::ServerError)
+    end
+  end
+
+  context 'when the server denies a publish and the default error handler reports it' do
+    before do
+      allow(Artery).to receive(:handle_error).and_call_original
+      allow(Artery.logger).to receive(:error)
+      client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"'))
+    end
+
+    it 'logs the error with its backtrace' do
+      expect(Artery.logger).to have_received(:error).with(/\ANATS server error: 'Permissions Violation.*\n.+/m)
+    end
   end
 
   context 'when the server denies a subscription' do

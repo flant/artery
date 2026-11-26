@@ -108,8 +108,9 @@ describe Artery::Worker do
       deliver(success)
     end
 
-    it 'waits for the server to confirm subscriptions' do
-      expect(backend).to have_received(:flush)
+    it 'waits for the server to confirm subscriptions', :aggregate_failures do
+      expect(backend).to have_received(:subscribe).ordered
+      expect(backend).to have_received(:flush).ordered
     end
   end
 
