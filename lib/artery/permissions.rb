@@ -41,7 +41,7 @@ module Artery
       end
 
       JSON.pretty_generate(
-        user: nats_user,
+        user: Artery.backend.auth_user || service,
         password: VariableReference.new(password_variable),
         permissions: { publish: { allow: publish }, subscribe: { allow: subscribe } }
       )
@@ -51,19 +51,6 @@ module Artery
 
     def subscriptions
       Artery.subscriptions || {}
-    end
-
-    # The user Artery connects as with a password. A user without a password is a token, which is never printed.
-    def nats_user
-      config = Artery.backend.config
-      return config[:user] if config[:user].present? && config[:password].present?
-
-      servers = Array(config[:servers]).filter_map do |server|
-        URI.parse(server.to_s)
-      rescue URI::InvalidURIError
-        nil
-      end
-      servers.find { |uri| uri.user.present? && uri.password.present? }&.user || service
     end
 
     # `artery-check` requests the essential services, or every service it subscribes to when none is set.

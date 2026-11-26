@@ -90,6 +90,15 @@ module Artery
         client.publish route, data
       end
 
+      # nats-pure applies the user and password of the options to the address of the server it connects to.
+      def auth_user
+        uri = URI.parse(Array(options[:servers]).first.to_s)
+        user = options[:user].presence || uri.user
+        user if user.present? && (options[:pass].presence || uri.password).present?
+      rescue URI::InvalidURIError
+        nil
+      end
+
       private
 
       # Reports errors sent by the server. Network errors are left to the disconnect and reconnect events.

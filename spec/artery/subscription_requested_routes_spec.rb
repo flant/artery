@@ -50,9 +50,9 @@ describe Artery::Subscription, '#requested_routes' do
   context 'when it watches every model of another service' do
     let(:uri) { Artery::Routing.uri(service: :bush, model: '*', action: :create) }
     let(:handled_action) { :_default }
-    let(:options) { { synchronize_updates: false } }
+    let(:options) { {} }
 
-    it { is_expected.to eq(%w[bush.*.get]) }
+    it { is_expected.to eq(%w[bush.*.get bush.*s.get_updates]) }
   end
 
   context 'when it names the service itself by a string' do

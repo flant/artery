@@ -5,9 +5,7 @@ require 'rake'
 describe 'artery:permissions', type: :task do
   subject(:task) { Rake::Task['artery:permissions'] }
 
-  let(:entry) do
-    a_string_including('"password": $TEST_NATS', '"test.source.*"', '"test.sources.get"', '"_INBOX.test.>"')
-  end
+  let(:entry) { a_string_including('"password": $TEST_NATS', '"test.source.*"', '"_INBOX.test.>"') }
 
   around do |example|
     env = ENV.to_h

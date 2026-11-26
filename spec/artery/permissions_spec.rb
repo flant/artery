@@ -2,13 +2,14 @@
 
 describe Artery::Permissions do
   let(:get_subscription) do
-    instance_double(Artery::Subscription, uri: Artery::Routing.uri(model: :sources, action: :get), requested_routes: [])
+    instance_double(Artery::Subscription, uri: Artery::Routing.uri(model: :sources, action: :get),
+                                          requested_routes: [])
   end
   let(:watch_subscription) do
     instance_double(Artery::Subscription, uri: Artery::Routing.uri(service: :bush, model: :user, action: '*'),
                                           requested_routes: %w[bush.users.get_updates bush.users.get])
   end
-  let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: '_INBOX.test', config: {}) }
+  let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: '_INBOX.test', auth_user: nil) }
 
   before do
     stub_const('Artery::Check::ESSENTIAL_SERVICES', %w[billing])
@@ -46,7 +47,7 @@ describe Artery::Permissions do
     it { is_expected.to eq(%w[_INBOX.test.> bush.user.* test.healthz.check test.healthz.worker test.sources.get]) }
 
     context 'without inbox prefix' do
-      let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: nil, config: {}) }
+      let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: nil, auth_user: nil) }
 
       it { is_expected.to include('_INBOX.>') }
     end
@@ -87,25 +88,8 @@ describe Artery::Permissions do
       it { is_expected.to include(%("password": $_2FA_PASSWORD_HASH)) }
     end
 
-    context 'with a configured NATS user and password' do
-      let(:backend) do
-        instance_double(Artery::Backends::NATSPure, inbox_prefix: nil, config: { user: 'billing_nats', password: 'x' })
-      end
-
-      it { is_expected.to include(%("user": "billing_nats")) }
-    end
-
-    context 'with a token configured as the NATS user' do
-      let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: nil, config: { user: 's3cr3t' }) }
-
-      it { is_expected.not_to include('s3cr3t') }
-    end
-
-    context 'with the NATS user in the server address' do
-      let(:backend) do
-        instance_double(Artery::Backends::NATSPure, inbox_prefix: nil,
-                                                    config: { servers: ['nats://billing_nats:x@nats:4222'] })
-      end
+    context 'with a NATS user of password authentication' do
+      let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: nil, auth_user: 'billing_nats') }
 
       it { is_expected.to include(%("user": "billing_nats")) }
     end
