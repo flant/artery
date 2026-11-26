@@ -74,8 +74,9 @@ describe Artery::Backends::NATSPure, '#connect' do
       client.send(:process_err, %('Permissions Violation for Subscription to "_INBOX.other.>"'))
     end
 
-    it 'reports the denied subject' do
+    it 'reports the denied subject without reconnecting', :aggregate_failures do
       expect(Artery).to have_received(:handle_error).with(reported_error)
+      expect(client).not_to have_received(:process_op_error)
     end
   end
 
