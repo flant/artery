@@ -48,6 +48,12 @@ describe Artery::Permissions do
 
       it { is_expected.not_to include('*.healthz.check') }
     end
+
+    context 'with an own inbox prefix outside _INBOX' do
+      let(:backend) { instance_double(Artery::Backends::NATSPure, inbox_prefix: 'REPLIES.test') }
+
+      it { is_expected.to include('_INBOX.>', 'REPLIES.test.>') }
+    end
   end
 
   describe '#subscribe' do
@@ -66,6 +72,11 @@ describe Artery::Permissions do
     subject(:entry) { described_class.new.to_nats_user }
 
     it { is_expected.to include(%("user": "test"), %("password": $TEST_PASSWORD_HASH)) }
+
+    it 'puts the routes into their sections', :aggregate_failures do
+      expect(entry).to match(/"publish": \{\s*"allow": \[[^\]]*"test\.source\.\*"/)
+      expect(entry).to match(/"subscribe": \{\s*"allow": \[[^\]]*"_INBOX\.test\.>"/)
+    end
 
     context 'with a password variable' do
       subject { described_class.new.to_nats_user(password_variable: 'BILLING_NATS') }

@@ -1,31 +1,14 @@
 # frozen_string_literal: true
 
-require 'rake'
+require 'open3'
 
+# A separate process, so the models are loaded only by the eager loading of the task itself.
 describe 'artery:permissions', type: :task do
-  subject(:task) { Rake::Task['artery:permissions'] }
-
-  let(:entry) do
-    a_string_including('"user": "test_nats"', '"password": $TEST_NATS',
-                       '"test.source.*"', '"_INBOX.test.>"')
+  subject do
+    Open3.capture2({ 'RAILS_ENV' => 'test', 'ARTERY_INBOX_PREFIX' => nil },
+                   RbConfig.ruby, '-S', 'rake', 'artery:permissions[TEST_NATS,test_nats]',
+                   chdir: Rails.root.to_s).first
   end
 
-  around do |example|
-    env = ENV.to_h
-    application = Rake.application
-    ENV.delete('ARTERY_INBOX_PREFIX')
-    Rake.application = Rake::Application.new
-    example.run
-  ensure
-    Rake.application = application
-    ENV.replace(env)
-  end
-
-  before do
-    Rails.application.load_tasks
-  end
-
-  it 'prints the user entry of the dummy application' do
-    expect { task.invoke('TEST_NATS', 'test_nats') }.to output(entry).to_stdout
-  end
+  it { is_expected.to include('"user": "test_nats"', '"password": $TEST_NATS', '"test.source.*"', '"_INBOX.test.>"') }
 end

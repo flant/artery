@@ -50,14 +50,25 @@ describe Artery do
       subject(:subscriptions) { described_class.subscriptions }
 
       let(:subscription) { instance_double(Artery::Subscription, subscriber: previous_charge) }
+      let(:subscribed_list) { [subscription] }
+
+      around do |example|
+        registered = described_class.subscriptions
+        example.run
+      ensure
+        described_class.subscriptions = registered
+      end
 
       before do
-        allow(described_class).to receive(:subscriptions)
-          .and_return(Artery::Routing.uri('archive.charge.*') => [subscription])
+        described_class.subscriptions = { Artery::Routing.uri('archive.charge.*') => subscribed_list }
         described_class.unregister_model(previous_charge)
       end
 
       it { is_expected.to be_empty }
+
+      it 'keeps the list a running worker subscribed with' do
+        expect(subscribed_list).to contain_exactly(subscription)
+      end
     end
   end
 

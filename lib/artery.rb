@@ -64,8 +64,11 @@ module Artery
     # Forgets a class unloaded by code reloading, with its subscriptions.
     def unregister_model(model)
       model_registry.delete_if { |_key, registered| registered.equal?(model) }
-      subscriptions&.each_value { |list| list.reject! { |subscription| subscription.subscriber.equal?(model) } }
-      subscriptions&.delete_if { |_uri, list| list.empty? }
+      return unless subscriptions
+
+      # A running worker keeps handling the lists it subscribed with, so they are replaced, not changed.
+      self.subscriptions = subscriptions.transform_values { |list| list.reject { |s| s.subscriber.equal?(model) } }
+                                        .reject { |_uri, list| list.empty? }
     end
 
     def handle_signals

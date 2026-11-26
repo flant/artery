@@ -49,7 +49,7 @@ Artery works with NATS users whose permissions allow only the subjects of their 
 - `Artery.models`, the classes that call `artery_model`: a source model publishes its events;
 - `Artery.subscriptions`: the worker subscribes to them, and a subscription requests `get`, `get_updates` and `get_all` of the watched model as its handlers and synchronization options need;
 - health checks: the service's own `healthz.check` and `healthz.worker`, and `healthz.check` of `ARTERY_CHECK_ESSENTIAL_SERVICES` and of the services it subscribes to;
-- the inbox prefix described above;
+- the inbox prefix described above: `subscribe` on it, and `publish` on it as well when it is outside `_INBOX`, so the service can answer itself;
 - outgoing routes declared by the application or by gems.
 
 Routes requested or published directly with `Artery.request` or `Artery.publish` are not visible from models and subscriptions. Declare them, for example in an initializer; a gem declares its own the same way:
@@ -59,6 +59,8 @@ Artery.configure do |config|
   config.add_outgoing_routes 'madison.events.new', 'license_deckhouse.license.daas_tokens'
 end
 ```
+
+Declare the same way the inbox prefixes of requesters outside `_INBOX` (`REPLIES.billing.>`), and `<service>.healthz.check` of a service that `artery-check <service>` checks while the service neither subscribes to it nor lists it in `ARTERY_CHECK_ESSENTIAL_SERVICES`.
 
 Subscriptions made with `Artery.subscribe` outside models are not included, apart from the health checks of Artery itself.
 

@@ -46,10 +46,7 @@ module Artery
           return
         end
 
-        get_uri = Routing.uri service: from_uri.service,
-                              model: from_uri.model,
-                              plural: true,
-                              action: :get
+        get_uri = from_uri.request_uri(:get)
         get_data = {
           uuid: data[:uuid],
           representation: subscription.representation_name

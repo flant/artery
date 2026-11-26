@@ -17,8 +17,11 @@ module Artery
       Artery.service_name.to_s
     end
 
+    # Replies go to the inboxes of the requesters: `_INBOX.>` covers the default prefixes, and an own prefix
+    # outside `_INBOX` is added so the service can answer itself. Other prefixes are declared as outgoing routes.
     def publish
       routes = ['_INBOX.>']
+      routes << "#{inbox_prefix}.>" unless inbox_prefix == '_INBOX' || inbox_prefix.start_with?('_INBOX.')
       routes += healthz_services.map { |name| "#{name}.healthz.check" }
       routes += Artery.models.select(&:artery_source_model?).map { |model| "#{service}.#{model.artery_model_name}.*" }
       routes += subscriptions.values.flatten.flat_map(&:requested_routes)
@@ -27,7 +30,7 @@ module Artery
     end
 
     def subscribe
-      routes = ["#{Artery.backend.inbox_prefix || '_INBOX'}.>", "#{service}.healthz.check", "#{service}.healthz.worker"]
+      routes = ["#{inbox_prefix}.>", "#{service}.healthz.check", "#{service}.healthz.worker"]
       routes += subscriptions.keys.map(&:to_route)
       normalize(routes)
     end
@@ -51,6 +54,11 @@ module Artery
 
     def subscriptions
       Artery.subscriptions || {}
+    end
+
+    # nats-pure uses `_INBOX` when the backend names no prefix.
+    def inbox_prefix
+      Artery.backend.inbox_prefix || '_INBOX'
     end
 
     # Services whose health checks the service may request: itself, `Check::ESSENTIAL_SERVICES` (the default
