@@ -37,10 +37,10 @@ An explicit success or error reply takes precedence over this fallback. If all h
 
 Artery works with NATS users whose permissions allow only the subjects of their service.
 
-- Replies to `Artery.request` arrive on inbox subjects under `_INBOX.<service_name>`, or under `_INBOX` if `service_name` is not configured. Set `inbox_prefix` in `backend_config` or `ARTERY_INBOX_PREFIX` to use another prefix. A restricted user needs `subscribe` on `<prefix>.>` to receive replies, and `publish` on the prefixes of its requesters to answer them: `_INBOX.>` while they keep prefixes under `_INBOX`.
+- Replies to `Artery.request` arrive on inbox subjects under `_INBOX.<service_name>`, or under `_INBOX` if `service_name` is not configured. Set `inbox_prefix` in `backend_config` or `ARTERY_INBOX_PREFIX` to use another prefix. A restricted user needs `subscribe` on `<prefix>.>` to receive replies, and `publish` on the prefixes of its requesters to answer them: `_INBOX.>` while they keep prefixes under `_INBOX`. NATS `allow_responses` is a narrower alternative to that `publish`, allowing only replies to received requests within its limits. With the default prefix a reply subject has four tokens, `_INBOX.<service_name>.<connection>.<request>`, so an ACL such as `_INBOX.*.*` no longer matches it.
 - When the server denies a publish or a subscription, the connection stays open. The error is logged and reported through the error handler as `Artery::PermissionError` with the denied subject in its context. Other server errors on an established connection, such as a failed authentication on reconnect, are reported as `Artery::BackendError`. A stale connection only reconnects, and a failure of the first connect is still raised by `Artery.connect`.
 - A request to a denied subject fails with `Artery::TimeoutError` after the request timeout.
-- On start, the worker waits until the server has processed its subscriptions, so a denied subscription is reported right away. The server does not retry it: restart the worker once the permissions are fixed.
+- On start, the worker waits until the server has processed its subscriptions, so a denied subscription is reported right away. A denied subscription is not retried until the connection is re-established. This includes the reply inbox, which every process subscribes to once, on its first request: once the permissions are fixed, restart every process that was denied, not only the worker.
 
 ### Generating permissions
 
