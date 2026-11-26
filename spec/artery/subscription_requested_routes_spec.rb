@@ -63,6 +63,12 @@ describe Artery::Subscription, '#requested_routes' do
     it { is_expected.to eq(%w[bush.*s.get bush.*s.get_updates]) }
   end
 
+  context 'when it watches a model of every service' do
+    let(:uri) { Artery::Routing.uri(service: '*', model: :user, action: '*') }
+
+    it { is_expected.to eq(%w[*.users.get]) }
+  end
+
   context 'when it names the service itself by a string' do
     let(:uri) { Artery::Routing.uri(service: 'test', model: :source, action: '*') }
     let(:options) { {} }

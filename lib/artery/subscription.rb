@@ -60,6 +60,9 @@ module Artery
       routes = []
       # A message delivered directly is enriched by its own model, so a wildcard model stays a wildcard.
       routes << requested_route(:get, plural: uri.model.to_s != '*') if enriches_delivered?
+      # Synchronization requests the service of the subscription, which a wildcard does not name.
+      return routes if uri.service.to_s == '*'
+
       routes << requested_route(:get) if handles_records? && receives_updates?
       routes << requested_route(:get_updates) if receives_updates?
       routes << requested_route(:get_all) if synchronize? || rewindable?

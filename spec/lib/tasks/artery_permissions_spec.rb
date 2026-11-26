@@ -5,7 +5,9 @@ require 'rake'
 describe 'artery:permissions', type: :task do
   subject(:task) { Rake::Task['artery:permissions'] }
 
-  let(:entry) { a_string_including('"password": $TEST_NATS', '"test.source.*"', '"_INBOX.test.>"') }
+  let(:entry) do
+    a_string_including('"user": "test_nats"', '"password": $TEST_NATS', '"test.source.*"', '"_INBOX.test.>"')
+  end
 
   around do |example|
     env = ENV.to_h
@@ -23,6 +25,6 @@ describe 'artery:permissions', type: :task do
   end
 
   it 'prints the user entry of the dummy application' do
-    expect { task.invoke('TEST_NATS') }.to output(entry).to_stdout
+    expect { task.invoke('TEST_NATS', 'test_nats') }.to output(entry).to_stdout
   end
 end
