@@ -57,7 +57,8 @@ module Artery
     # list of `Check#execute`) and the services of its subscriptions (checked when the list is empty, as
     # `artery-check` without arguments does). A wildcard service names no service to check.
     def healthz_services
-      [service] + Artery::Check::ESSENTIAL_SERVICES + subscriptions.keys.map(&:service).reject { |name| name.to_s == '*' }
+      subscription_services = subscriptions.keys.map(&:service).reject { |name| name.to_s == '*' }
+      [service] + Artery::Check::ESSENTIAL_SERVICES + subscription_services
     end
 
     def normalize(routes)
