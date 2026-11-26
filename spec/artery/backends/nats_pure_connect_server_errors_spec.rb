@@ -8,6 +8,8 @@ describe Artery::Backends::NATSPure, '#connect' do
 
   before do
     allow(Artery).to receive(:handle_error)
+    # Reconnecting would exit the calling thread, the one of RSpec, if the server errors reached nats-pure.
+    allow(client).to receive(:process_op_error)
     # The test server runs without authentication; nats-pure decides by this flag how to treat -ERR.
     server[:auth_required] = true
   end
@@ -27,6 +29,7 @@ describe Artery::Backends::NATSPure, '#connect' do
     it 'keeps the connection and the server', :aggregate_failures do
       expect(client).to be_connected
       expect(server).not_to include(:error_received)
+      expect(client).not_to have_received(:process_op_error)
     end
 
     it 'reports the denied subject' do
@@ -78,8 +81,6 @@ describe Artery::Backends::NATSPure, '#connect' do
 
   context 'when the server rejects authentication' do
     before do
-      # Stops nats-pure from reconnecting, which would exit the calling thread.
-      allow(client).to receive(:process_op_error)
       client.send(:process_err, "'Authorization Violation'")
     end
 
