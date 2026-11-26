@@ -15,6 +15,14 @@ describe Artery::Backends::NATSPure, '#connect' do
     end
   end
 
+  around do |example|
+    env = ENV.to_h
+    ENV.delete('ARTERY_INBOX_PREFIX')
+    example.run
+  ensure
+    ENV.replace(env)
+  end
+
   before do
     allow(NATS).to receive(:connect).and_return(nats_client)
     allow(Artery::Instrumentation).to receive(:instrument) { |_name, payload| payloads << payload }
@@ -79,6 +87,30 @@ describe Artery::Backends::NATSPure, '#connect' do
     subject(:backend) { described_class.new(inbox_prefix: '_INBOX.custom') }
 
     before do
+      backend.connect
+    end
+
+    it 'receives replies under the configured prefix' do
+      expect(NATS).to have_received(:connect).with(hash_including(custom_inbox_prefix: '_INBOX.custom'))
+    end
+  end
+
+  context 'when connected with inbox prefix in the environment' do
+    before do
+      ENV['ARTERY_INBOX_PREFIX'] = '_INBOX.env'
+      backend.connect
+    end
+
+    it 'receives replies under the prefix from the environment' do
+      expect(NATS).to have_received(:connect).with(hash_including(custom_inbox_prefix: '_INBOX.env'))
+    end
+  end
+
+  context 'when connected with inbox prefix both configured and in the environment' do
+    subject(:backend) { described_class.new(inbox_prefix: '_INBOX.custom') }
+
+    before do
+      ENV['ARTERY_INBOX_PREFIX'] = '_INBOX.env'
       backend.connect
     end
 

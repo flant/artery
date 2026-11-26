@@ -17,9 +17,7 @@ describe Artery::Backends::NATSPure, '#connect' do
   end
 
   context 'when the server denies a publish' do
-    let(:reported_error) do
-      having_attributes(class: Artery::PermissionError, artery_context: { subject: 'forbidden.thing' })
-    end
+    let(:reported_error) { having_attributes(class: Artery::PermissionError, artery_context: { subject: 'forbidden.thing' }) }
 
     before do
       client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"'))
@@ -51,10 +49,21 @@ describe Artery::Backends::NATSPure, '#connect' do
     end
   end
 
-  context 'when the server denies a subscription' do
-    let(:reported_error) do
-      having_attributes(class: Artery::PermissionError, artery_context: { subject: '_INBOX.other.>' })
+  context 'when the server denies a publish and an instrumentation subscriber fails' do
+    before do
+      allow(Artery::Instrumentation).to receive(:instrument).and_call_original
+      allow(Artery::Instrumentation).to receive(:instrument)
+        .with(:connection, hash_including(state: :error)).and_raise('subscriber failed')
+      client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"'))
     end
+
+    it 'still reports the error' do
+      expect(Artery).to have_received(:handle_error).with(an_instance_of(Artery::PermissionError))
+    end
+  end
+
+  context 'when the server denies a subscription' do
+    let(:reported_error) { having_attributes(class: Artery::PermissionError, artery_context: { subject: '_INBOX.other.>' }) }
 
     before do
       client.send(:process_err, %('Permissions Violation for Subscription to "_INBOX.other.>"'))

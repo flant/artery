@@ -93,7 +93,6 @@ module Artery
       private
 
       # Reports errors sent by the server. Network errors are left to the disconnect and reconnect events.
-      # Runs in the reading thread of nats-pure: an exception here would make it reconnect.
       def report_error(error)
         return unless error.is_a?(::NATS::IO::ServerError) || error.is_a?(::NATS::IO::AuthError)
 
@@ -101,11 +100,20 @@ module Artery
         error.set_backtrace(caller) unless error.backtrace
         message = error.message.to_s
         subject = message[DENIED_SUBJECT, 1]
-        Artery::Instrumentation.instrument(:connection, state: :error, error: message, subject: subject)
-
         error_class = PERMISSIONS_VIOLATION.match?(message) ? PermissionError : BackendError
-        Artery.handle_error error_class.new("NATS server error: #{message}",
-                                            original_exception: error, subject: subject)
+
+        isolate_reporting(error) do
+          Artery::Instrumentation.instrument(:connection, state: :error, error: message, subject: subject)
+        end
+        isolate_reporting(error) do
+          Artery.handle_error error_class.new("NATS server error: #{message}",
+                                              original_exception: error, subject: subject)
+        end
+      end
+
+      # Runs in the reading thread of nats-pure: an exception here would make it reconnect.
+      def isolate_reporting(error)
+        yield
       rescue StandardError => e
         Artery.logger.error "Failed to report NATS error #{error.inspect}: #{e.inspect}"
       end
