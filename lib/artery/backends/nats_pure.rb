@@ -118,12 +118,6 @@ module Artery
         Artery.logger.error "Failed to report NATS error #{error.inspect}: #{e.inspect}"
       end
 
-      # Restricted NATS users may subscribe only to inboxes of their own service.
-      def inbox_prefix
-        config[:inbox_prefix].presence || ENV['ARTERY_INBOX_PREFIX'].presence ||
-          ("_INBOX.#{Artery.service_name}" if Artery.service_name?)
-      end
-
       # Returns server address without credentials, so they never reach instrumentation subscribers (logs).
       def sanitized_server(server)
         return server if server.nil?

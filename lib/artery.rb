@@ -17,6 +17,7 @@ module Artery
   autoload :Worker,        'artery/worker'
   autoload :Sync,          'artery/sync'
   autoload :Check,         'artery/check'
+  autoload :Permissions,   'artery/permissions'
   autoload :Model,         'artery/model'
   autoload :Routing,       'artery/routing'
   autoload :Backend,       'artery/backend'
@@ -45,6 +46,19 @@ module Artery
   class << self
     attr_accessor :worker
 
+    # Classes that called `artery_model`. A class reloaded in development replaces the previous one.
+    def models
+      model_registry.values
+    end
+
+    def register_model(model)
+      model_registry[model.name || model] = model
+    end
+
+    def unregister_model(name)
+      model_registry.delete(name)
+    end
+
     def handle_signals
       %w[TERM INT].each do |sig|
         trap(sig) do
@@ -55,6 +69,12 @@ module Artery
           exit
         end
       end
+    end
+
+    private
+
+    def model_registry
+      @model_registry ||= {}
     end
   end
 end

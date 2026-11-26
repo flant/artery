@@ -42,6 +42,56 @@ Artery works with NATS users whose permissions allow only the subjects of their 
 - A request to a denied subject fails with `Artery::TimeoutError` after the request timeout.
 - On start, the worker waits until the server has processed its subscriptions, so a denied subscription is reported right away. The server does not retry it: restart the worker once the permissions are fixed.
 
+### Generating permissions
+
+`rake artery:permissions` loads the application and prints its user entry for the `authorization.users` list of `nats.conf`. The subjects come from:
+
+- `Artery.models`, the classes that call `artery_model`: a source model publishes its events;
+- `Artery.subscriptions`: the worker subscribes to them, and a subscription from `artery_watch_model` requests `get`, `get_updates` and `get_all` of the watched model as its options need;
+- health checks: the service's own `healthz.check` and `healthz.worker`, and `healthz.check` of `ARTERY_CHECK_ESSENTIAL_SERVICES` and of the services it subscribes to;
+- the inbox prefix described above;
+- outgoing routes declared by the application or by gems.
+
+Routes requested or published directly with `Artery.request` or `Artery.publish` are not visible from models and subscriptions. Declare them, for example in an initializer; a gem declares its own the same way:
+
+```ruby
+Artery.configure do |config|
+  config.add_outgoing_routes 'madison.events.new', 'license_deckhouse.license.daas_tokens'
+end
+```
+
+Subscriptions made with `Artery.subscribe` outside models are not included, apart from the health checks of Artery itself.
+
+The password is a reference to a variable holding its bcrypt hash, `$<SERVICE>_PASSWORD_HASH` by default; pass another name as the task argument. Routes are sorted and unique, so the output can be compared with the configuration by a diff. Run the task with `ARTERY_CHECK_ESSENTIAL_SERVICES` set as in the deployment.
+
+```console
+$ bundle exec rake "artery:permissions[EMERGENCY_CONTACT_PASSWORD_HASH]"
+{
+  "user": "emergency_contact",
+  "password": $EMERGENCY_CONTACT_PASSWORD_HASH,
+  "permissions": {
+    "publish": {
+      "allow": [
+        "_INBOX.>",
+        "bush.healthz.check",
+        "bush.projects.get",
+        "bush.projects.get_all",
+        "bush.projects.get_updates",
+        "emergency_contact.healthz.check"
+      ]
+    },
+    "subscribe": {
+      "allow": [
+        "_INBOX.emergency_contact.>",
+        "bush.project.*",
+        "emergency_contact.healthz.check",
+        "emergency_contact.healthz.worker"
+      ]
+    }
+  }
+}
+```
+
 ## Publishing modes
 
 Artery supports two modes for publishing messages to NATS:

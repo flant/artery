@@ -61,6 +61,16 @@ module Artery
           @error_handler || (defined?(Artery::SentryErrorHandler) ? Artery::SentryErrorHandler : Artery::ErrorHandler)
         end
 
+        # Routes requested or published directly (`Artery.request`, `Artery.publish`), which models and
+        # subscriptions do not show. Applications and gems add theirs to get NATS permissions for them.
+        def outgoing_routes
+          @outgoing_routes ||= []
+        end
+
+        def add_outgoing_routes(*routes)
+          outgoing_routes.concat(routes.flatten.map(&:to_s))
+        end
+
         def backend_config
           @backend_config ||= {
             servers: ENV.fetch('ARTERY_SERVERS', '').split(','),
