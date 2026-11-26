@@ -55,8 +55,11 @@ module Artery
       model_registry[model.name || model] = model
     end
 
-    def unregister_model(name)
-      model_registry.delete(name)
+    # Forgets a class unloaded by code reloading, with its subscriptions.
+    def unregister_model(model)
+      model_registry.delete_if { |_key, registered| registered.equal?(model) }
+      subscriptions&.each_value { |list| list.reject! { |subscription| subscription.subscriber.equal?(model) } }
+      subscriptions&.delete_if { |_uri, list| list.empty? }
     end
 
     def handle_signals

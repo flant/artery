@@ -47,7 +47,7 @@ Artery works with NATS users whose permissions allow only the subjects of their 
 `rake artery:permissions` loads the application and prints its user entry for the `authorization.users` list of `nats.conf`. The subjects come from:
 
 - `Artery.models`, the classes that call `artery_model`: a source model publishes its events;
-- `Artery.subscriptions`: the worker subscribes to them, and a subscription from `artery_watch_model` requests `get`, `get_updates` and `get_all` of the watched model as its options need;
+- `Artery.subscriptions`: the worker subscribes to them, and a subscription requests `get`, `get_updates` and `get_all` of the watched model as its handlers and synchronization options need;
 - health checks: the service's own `healthz.check` and `healthz.worker`, and `healthz.check` of `ARTERY_CHECK_ESSENTIAL_SERVICES` and of the services it subscribes to;
 - the inbox prefix described above;
 - outgoing routes declared by the application or by gems.
@@ -62,7 +62,9 @@ end
 
 Subscriptions made with `Artery.subscribe` outside models are not included, apart from the health checks of Artery itself.
 
-The password is a reference to a variable holding its bcrypt hash, `$<SERVICE>_PASSWORD_HASH` by default; pass another name as the task argument. Routes are sorted and unique, so the output can be compared with the configuration by a diff. Run the task with `ARTERY_CHECK_ESSENTIAL_SERVICES` set as in the deployment.
+The user is the one Artery connects as (`ARTERY_USER`), or the service name. The password is a reference to a variable holding its bcrypt hash, `$<SERVICE>_PASSWORD_HASH` by default; pass another name as the task argument. Routes are sorted and unique, so the output can be compared with the configuration by a diff. Run the task with `ARTERY_USER` and `ARTERY_CHECK_ESSENTIAL_SERVICES` set as in the deployment.
+
+When a source model is removed or renamed, keep its old route until the old processes are stopped and the publisher has sent the messages already queued for it.
 
 ```console
 $ bundle exec rake "artery:permissions[EMERGENCY_CONTACT_PASSWORD_HASH]"

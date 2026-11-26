@@ -9,6 +9,8 @@ module Artery
 
     attr_accessor :uri, :subscriber, :handler, :options
 
+    ENRICHED_ACTIONS = %i[* create update].freeze
+
     DEFAULTS = {
       synchronize: false,
       synchronize_updates: true,
@@ -51,6 +53,17 @@ module Artery
 
     def rewindable?
       client? && synchronize_updates?
+    end
+
+    # Routes of the publishing service this subscription requests, for the permissions of the service.
+    def requested_routes
+      actions = []
+      actions << :get if enriches?
+      actions << :get_updates if receives_updates?
+      actions << :get_all if synchronize? || rewindable?
+      actions.map do |action|
+        Routing.uri(service: uri.service, model: uri.model, plural: true, action: action).to_route
+      end
     end
 
     def latest_outgoing_message_index
@@ -113,6 +126,17 @@ module Artery
     end
 
     protected
+
+    # #handle enriches a create or update without attributes, delivered directly or by #receive_updates.
+    def enriches?
+      %i[create update _default].any? { |name| handler.has_block?(name) } &&
+        (ENRICHED_ACTIONS.include?(uri.action) || receives_updates?)
+    end
+
+    # #synchronize! skips subscriptions on the service itself.
+    def receives_updates?
+      synchronize_updates? && uri.service.to_s != Artery.service_name.to_s
+    end
 
     def validate_index(message)
       return true unless message.previous_index.positive? && latest_message_index.positive?
