@@ -4,7 +4,7 @@ describe Artery::Backends::NATSPure::ErrorReporter do
   subject(:reporter) { described_class.new }
 
   let(:release) { Concurrent::Event.new }
-  let(:logger) { instance_double(Logger, error: nil) }
+  let(:logger) { instance_double(Logger, error: nil, warn: nil) }
 
   before do
     stub_const("#{described_class}::QUEUE_SIZE", 1)
@@ -30,13 +30,23 @@ describe Artery::Backends::NATSPure::ErrorReporter do
     end
   end
 
-  context 'when the pending reports are not done in time on stopping' do
+  context 'when the pending reports are not done in time on stopping a connection' do
+    before do
+      reporter.drain(0.1)
+    end
+
+    it 'logs that they keep being sent' do
+      expect(logger).to have_received(:warn).with(/still pending 0.1 s after stopping, they keep being sent/)
+    end
+  end
+
+  context 'when the pending reports are not done in time on exit' do
     before do
       reporter.shutdown(0.1)
     end
 
     it 'logs that they are lost' do
-      expect(logger).to have_received(:error).with(/not done 0.1 s after stopping/)
+      expect(logger).to have_received(:error).with(/not done 0.1 s after the process stopped, they are lost/)
     end
   end
 end
