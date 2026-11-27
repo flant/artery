@@ -158,6 +158,31 @@ describe Artery::Backends::Fake do
       end
     end
 
+    context 'when another thread checks while the application loads' do
+      let(:started) { Concurrent::Event.new }
+      let(:loaded) { Concurrent::Event.new }
+      let(:loader) { Thread.new { backend.publish('test.healthz.check') } }
+
+      before do
+        allow(Artery).to receive(:outgoing_routes) { loaded.set? ? %w[late.route] : [] }
+        allow(Artery::Permissions).to receive(:load_application) do
+          started.set
+          sleep 0.2 # the other thread checks meanwhile
+          loaded.set
+        end
+        loader
+        started.wait(5)
+      end
+
+      after do
+        loader.join
+      end
+
+      it 'waits for the load' do
+        expect { Thread.new { backend.publish('late.route') }.value }.not_to raise_error
+      end
+    end
+
     context 'when loading the application fails' do
       before do
         allow(Artery::Permissions).to receive(:load_application).and_raise(NameError)

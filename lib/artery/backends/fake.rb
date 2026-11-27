@@ -15,6 +15,7 @@ module Artery
       def initialize(config = {})
         super
         @replies = {}
+        @loading = Monitor.new
         return if !strict_permissions? || Artery.service_name?
 
         raise Error, 'Strict permissions of the fake backend need Artery.service_name'
@@ -78,17 +79,20 @@ module Artery
                                 "#{HINTS.fetch(operation)}"
       end
 
-      # Models and subscriptions register when their classes load; tests load them lazily. A check made while
-      # loading, from a load hook, does not load again; a load that failed is retried by the next check.
+      # Models and subscriptions register when their classes load; tests load them lazily. Other threads wait for
+      # the load; a check made by the loading thread itself, from a load hook, does not load again. A load that
+      # failed is retried by the next check.
       def load_application
-        return if @application_loaded || @application_loading
+        @loading.synchronize do
+          return if @application_loaded || @application_loading
 
-        begin
-          @application_loading = true
-          Permissions.load_application
-          @application_loaded = true
-        ensure
-          @application_loading = false
+          begin
+            @application_loading = true
+            Permissions.load_application
+            @application_loaded = true
+          ensure
+            @application_loading = false
+          end
         end
       end
     end

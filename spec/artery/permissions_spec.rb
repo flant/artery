@@ -156,16 +156,20 @@ describe Artery::Permissions do
 
     context 'when a declared pattern is malformed' do
       subject do
-        %w[orders.events.write orders.events.read orders.events].to_h do |name|
+        denied.keys.to_h do |name|
           [name, permissions.permits?(:publish, name)]
         end
       end
 
-      before do
-        allow(permissions).to receive(:publish).and_return(%w[orders.>.read orders.events.])
+      let(:denied) do
+        { 'orders.events.write' => false, 'orders.events.read' => false, 'orders.events' => false, '' => false }
       end
 
-      it { is_expected.to eq('orders.events.write' => false, 'orders.events.read' => false, 'orders.events' => false) }
+      before do
+        allow(permissions).to receive(:publish).and_return(['orders.>.read', 'orders.events.', ''])
+      end
+
+      it { is_expected.to eq(denied) }
     end
 
     context 'when it subscribes' do

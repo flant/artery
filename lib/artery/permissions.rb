@@ -15,13 +15,15 @@ module Artery
 
     class << self
       # Whether a subject falls under a permission pattern, as nats-server checks it: `*` takes one token and `>`
-      # one or more; wildcards of the subject itself, as in a subscription, count as plain tokens. A subject or
-      # pattern with an empty token, or a pattern with `>` before its end, matches nothing: nats-server rejects
-      # such a pattern in its configuration.
+      # one or more; wildcards of the subject itself, as in a subscription, count as plain tokens. An empty subject
+      # or pattern, one with an empty token, or a pattern with `>` before its end, matches nothing: nats-server
+      # rejects such a pattern in its configuration.
       def match?(pattern, subject)
         pattern_tokens = pattern.split('.', -1)
         subject_tokens = subject.split('.', -1)
-        return false if (pattern_tokens + subject_tokens).any?(&:empty?) || pattern_tokens[0...-1].include?('>')
+        tokens = pattern_tokens + subject_tokens
+        return false if pattern_tokens.empty? || subject_tokens.empty? || tokens.any?(&:empty?)
+        return false if pattern_tokens[0...-1].include?('>')
 
         pattern_tokens.each_with_index do |token, index|
           return subject_tokens.size > index if token == '>'
