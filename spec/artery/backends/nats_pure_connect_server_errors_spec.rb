@@ -18,18 +18,13 @@ describe Artery::Backends::NATSPure, '#connect' do
     backend.stop
   end
 
-  # Waits for the reports posted so far; the reporter takes no more afterwards.
-  def wait_for_reports
-    backend.error_reporter.tap(&:shutdown).wait_for_termination(5)
-  end
-
   context 'when the server denies a publish' do
     let(:route) { 'forbidden.thing' }
     let(:reported_error) { having_attributes(class: Artery::PermissionError, artery_context: { subject: route }) }
 
     before do
       client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"'))
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'keeps the connection and the server', :aggregate_failures do
@@ -52,7 +47,7 @@ describe Artery::Backends::NATSPure, '#connect' do
       allow(Artery).to receive(:handle_error).and_call_original
       allow(Artery.logger).to receive(:error)
       client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"'))
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'logs the error with its backtrace' do
@@ -67,7 +62,7 @@ describe Artery::Backends::NATSPure, '#connect' do
         .with(:connection, hash_including(state: :error)).and_raise('subscriber failed')
       allow(Warning).to receive(:warn)
       client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"'))
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'still reports the error without reconnecting', :aggregate_failures do
@@ -82,7 +77,7 @@ describe Artery::Backends::NATSPure, '#connect' do
 
     before do
       client.send(:process_err, %('Permissions Violation for Subscription to "_INBOX.other.>"'))
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'reports the denied subject without reconnecting', :aggregate_failures do
@@ -96,7 +91,7 @@ describe Artery::Backends::NATSPure, '#connect' do
 
     before do
       client.send(:process_err, %('Permissions Violation for Publish to "denied.\\"quoted\\""'))
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'reports the subject as published' do
@@ -109,7 +104,7 @@ describe Artery::Backends::NATSPure, '#connect' do
 
     before do
       client.send(:process_err, %('Permissions Violation for Publish to "denied.back\\\\slash"'))
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'reports the subject as published' do
@@ -147,7 +142,7 @@ describe Artery::Backends::NATSPure, '#connect' do
 
     before do
       client.send(:process_err, %('Permissions Violation for Publish to "заказ.\\"новый\\""').b)
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'reports the subject as published' do
@@ -180,7 +175,7 @@ describe Artery::Backends::NATSPure, '#connect' do
       allow(Artery).to receive(:handle_error) { |error| reported << error.message }
       client.send(:err_cb_call, client, NATS::IO::ServerError.new("'First'"), nil)
       client.send(:err_cb_call, client, NATS::IO::ServerError.new("'Second'"), nil)
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'reports them in order' do
@@ -196,7 +191,7 @@ describe Artery::Backends::NATSPure, '#connect' do
       backend.stop
       backend.connect
       client.send(:err_cb_call, client, NATS::IO::ServerError.new("'Second'"), nil)
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'reports the errors that follow' do
@@ -217,7 +212,7 @@ describe Artery::Backends::NATSPure, '#connect' do
         reporting_threads << Thread.current
       end
       client.send(:err_cb_call, client, NATS::IO::ServerError.new("'First'"), nil)
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'returns the connection to the pool after the report', :aggregate_failures do
@@ -229,7 +224,7 @@ describe Artery::Backends::NATSPure, '#connect' do
   context 'when the server rejects authentication' do
     before do
       client.send(:process_err, "'Authorization Violation'")
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'leaves the error to nats-pure' do
@@ -240,7 +235,7 @@ describe Artery::Backends::NATSPure, '#connect' do
   context 'when nats-pure reports an authentication error' do
     before do
       client.send(:err_cb_call, client, NATS::IO::AuthError.new("'Authorization Violation'"), nil)
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'reports a backend error' do
@@ -251,7 +246,7 @@ describe Artery::Backends::NATSPure, '#connect' do
   context 'when nats-pure reports a network error' do
     before do
       client.send(:err_cb_call, client, Errno::ECONNRESET.new, nil)
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'leaves it to the disconnect and reconnect events' do
@@ -268,7 +263,7 @@ describe Artery::Backends::NATSPure, '#connect' do
       allow(Artery.logger).to receive(:error)
       client.send(:err_cb_call, client, NATS::IO::ServerError.new("'First'"), nil)
       client.send(:err_cb_call, client, NATS::IO::ServerError.new("'Second'"), nil)
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
     it 'logs the failure and reports the next error', :aggregate_failures do
@@ -277,23 +272,24 @@ describe Artery::Backends::NATSPure, '#connect' do
     end
   end
 
-  context 'when the error handler and the logger fail' do
+  context 'when the error handler, the logger and stderr fail' do
     let(:logger) { instance_double(Logger, warn: nil, info: nil) }
-    let(:reported_error) { having_attributes(message: "NATS server error: 'Second'") }
+    let(:denial) { having_attributes(class: Artery::PermissionError, artery_context: { subject: 'forbidden.thing' }) }
+    let(:next_error) { having_attributes(message: "NATS server error: 'Second'") }
 
     before do
       allow(Artery).to receive(:logger).and_return(logger)
       allow(logger).to receive(:error).and_raise(IOError, 'closed stream')
-      allow(Warning).to receive(:warn)
-      allow(Artery).to receive(:handle_error)
-        .with(having_attributes(message: "NATS server error: 'First'")).and_raise('error tracker is unavailable')
-      client.send(:process_err, "'First'")
+      allow(Warning).to receive(:warn).and_raise(IOError, 'closed stream')
+      allow(Artery).to receive(:handle_error).with(denial).and_raise('error tracker is unavailable')
+      client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"'))
       client.send(:err_cb_call, client, NATS::IO::ServerError.new("'Second'"), nil)
-      wait_for_reports
+      wait_for_reports(backend)
     end
 
-    it 'still reports the next error' do
-      expect(Artery).to have_received(:handle_error).with(reported_error)
+    it 'hands the denial to the error handler and reports the next error', :aggregate_failures do
+      expect(Artery).to have_received(:handle_error).with(denial)
+      expect(Artery).to have_received(:handle_error).with(next_error)
     end
   end
 end

@@ -122,7 +122,11 @@ module Artery
         Artery::Instrumentation.instrument(:connection, state: :error, error: message, subject: subject)
       rescue StandardError => e
         # Raised on the reading thread, it would make nats-pure reconnect.
-        warn "[Artery] Failed to log NATS error #{error.inspect}: #{e.inspect}"
+        begin
+          warn "[Artery] Failed to log NATS error #{error.inspect}: #{e.inspect}"
+        rescue StandardError
+          # stderr is gone as well
+        end
       end
 
       # The application executor returns what the handler checked out, such as a database connection, since the
