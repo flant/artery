@@ -35,17 +35,42 @@ module Artery
         STOP_TIMEOUT = 5
         EXIT_TIMEOUT = 2
 
-        def initialize
+        @reporters = Set.new
+        @registry = Mutex.new
+
+        class << self
+          # One exit handler shuts down every reporter still running; terminated ones are forgotten.
+          def register(reporter)
+            @registry.synchronize do
+              @exit_handler ||= at_exit { active.each { |running| running.shutdown(EXIT_TIMEOUT) } }
+              @reporters.delete_if(&:terminated?)
+              @reporters << reporter
+            end
+          end
+
+          def unregister(reporter)
+            @registry.synchronize { @reporters.delete(reporter) }
+          end
+
+          def active
+            @registry.synchronize { @reporters.to_a }
+          end
+        end
+
+        # A reporter that follows a stopped one sends its reports after the reports of the stopped one.
+        def initialize(after: nil)
           # One thread keeps the order, started on the first report; SingleThreadExecutor would not bound the queue.
           @executor = Concurrent::ThreadPoolExecutor.new(min_threads: 0, max_threads: 1,
                                                          max_queue: QUEUE_SIZE, fallback_policy: :abort)
           @dropped = Concurrent::AtomicFixnum.new
           @stopping = Mutex.new
-          at_exit { shutdown(EXIT_TIMEOUT) }
+          @after = after
+          self.class.register(self)
         end
 
         def post(description, &report)
           @executor.post do
+            wait_for_previous
             log_dropped
             report.call
           end
@@ -74,17 +99,36 @@ module Artery
           @executor.completed_task_count == @executor.scheduled_task_count
         end
 
+        # Takes no more reports; the reports already posted are still sent and the thread ends after them.
+        def close
+          @executor.shutdown
+        end
+
+        def terminated?
+          @executor.shutdown?
+        end
+
+        def wait_for_termination(timeout = nil)
+          @executor.wait_for_termination(timeout)
+        end
+
         # Stops reporting, also when the process exits; reports not done by then are lost.
         def shutdown(timeout = 5)
           @executor.shutdown
           done = @executor.wait_for_termination(timeout)
           @stopping.synchronize { log_dropped }
-          return if done
+          return self.class.unregister(self) if done
 
           Artery.logger.error "NATS error reports not done #{timeout} s after shutting down, they are lost"
         end
 
         private
+
+        # Runs on the reporting thread only.
+        def wait_for_previous
+          @after&.wait_for_termination
+          @after = nil
+        end
 
         def log_dropped
           count = @dropped.value
@@ -100,7 +144,7 @@ module Artery
       end
 
       def error_reporter
-        @error_reporter ||= ErrorReporter.new
+        @error_reporter ||= ErrorReporter.new(after: @stopped_reporter)
       end
 
       delegate :connected?, :connecting?, :subscribe, :flush, to: :client
@@ -168,14 +212,19 @@ module Artery
 
       private
 
-      # An idle reporter is shut down to free its thread; one still sending keeps its order for the next connection.
+      # Frees the reporting thread: at once when the posted reports are sent, otherwise after them. A reporter still
+      # sending them is kept for the next one to follow, so the reports keep their order.
       def stop_error_reporter
         return unless @error_reporter
 
         @error_reporter.drain
-        return unless @error_reporter.idle?
-
-        @error_reporter.shutdown
+        if @error_reporter.idle?
+          @error_reporter.shutdown
+          @stopped_reporter = nil if @stopped_reporter&.terminated?
+        else
+          @error_reporter.close
+          @stopped_reporter = @error_reporter
+        end
         @error_reporter = nil
       end
 
