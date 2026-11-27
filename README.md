@@ -33,6 +33,10 @@ If a subscription raises an unhandled exception, the worker reports it and runs 
 
 An explicit success or error reply takes precedence over this fallback. If all handlers finish normally without replying, the requester still waits for its timeout. Replies from other processes or asynchronous jobs are outside the worker's tracking scope.
 
+## Code reloading
+
+The worker picks up reloaded handlers of its models but subscribes to NATS subjects only on start. After adding or removing a subscription route, restart `artery-worker`: until then a new route gets no messages, and a request on a removed one may reach this worker and time out.
+
 ## NATS permissions
 
 Artery works with NATS users whose permissions allow only the subjects of their service.
