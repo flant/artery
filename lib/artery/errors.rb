@@ -40,6 +40,9 @@ module Artery
   # The server denied a publish or a subscription to the subject in the error context.
   class PermissionError < BackendError; end
 
+  # The strict test backend found no permission of the service for the subject.
+  class PermissionDenied < Error; end
+
   class FormatError < Error
     attr_accessor :route, :msg
 

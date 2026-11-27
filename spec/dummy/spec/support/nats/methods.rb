@@ -14,6 +14,13 @@ module Nats
       raise 'NATS error reports not done in 5 s' unless reporter.wait_for_termination(5)
     end
 
+    # Waits for a condition met by another thread, failing the example when it is not met in time.
+    def wait_until(timeout = 5)
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+      sleep 0.01 until yield || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+      raise "Not done in #{timeout} s" unless yield
+    end
+
     def with_worker(&)
       Fiber.set_scheduler(Async::Scheduler.new)
       f = Fiber.schedule do

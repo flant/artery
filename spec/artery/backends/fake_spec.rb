@@ -1,0 +1,240 @@
+# frozen_string_literal: true
+
+require 'open3'
+
+describe Artery::Backends::Fake do
+  subject(:backend) { described_class.new(config) }
+
+  let(:config) { {} }
+
+  around do |example|
+    strict = ENV.delete('ARTERY_STRICT_PERMISSIONS')
+    example.run
+  ensure
+    ENV['ARTERY_STRICT_PERMISSIONS'] = strict if strict
+  end
+
+  before do
+    allow(Artery).to receive(:backend) { backend }
+  end
+
+  context 'without a prepared reply' do
+    subject { make_request('bush.permission.effective_permissions') }
+
+    it { is_expected.to eq({}) }
+  end
+
+  context 'with a prepared reply' do
+    subject { make_request('bush.permission.effective_permissions') }
+
+    before do
+      backend.reply('bush.permission.effective_permissions', permissions: %w[read])
+    end
+
+    it { is_expected.to eq('permissions' => %w[read]) }
+  end
+
+  context 'with a reply prepared for a route given by its parts' do
+    subject { make_request('bush.permission.effective_permissions') }
+
+    before do
+      backend.reply({ service: :bush, model: :permission, action: :effective_permissions }, permissions: %w[read])
+    end
+
+    it { is_expected.to eq('permissions' => %w[read]) }
+  end
+
+  context 'with an empty prepared reply' do
+    subject { make_request('bush.permission.effective_permissions') }
+
+    before do
+      backend.reply('bush.permission.effective_permissions', nil)
+    end
+
+    it { is_expected.to eq({}) }
+  end
+
+  context 'with a prepared timeout' do
+    before do
+      backend.time_out('bush.permission.effective_permissions')
+    end
+
+    it 'times the request out' do
+      expect { make_request('bush.permission.effective_permissions') }.to raise_error(Artery::TimeoutError)
+    end
+  end
+
+  context 'when the replies are cleared' do
+    subject { make_request('bush.permission.effective_permissions') }
+
+    before do
+      backend.reply('bush.permission.effective_permissions', permissions: %w[read])
+      backend.clear_replies
+    end
+
+    it { is_expected.to eq({}) }
+  end
+
+  context 'when the service publishes to a subject without permission' do
+    it 'does not check it' do
+      expect { Artery.publish('the_new_run.issues.new', {}) }.not_to raise_error
+    end
+  end
+
+  context 'with strict permissions' do
+    let(:config) { { strict_permissions: true } }
+
+    context 'when it requests a route it has not declared' do
+      before do
+        backend.reply('bush.permission.effective_permissions', permissions: %w[read])
+      end
+
+      it 'fails before the prepared reply is returned' do
+        expect { make_request('bush.permission.effective_permissions') }.to raise_error(
+          Artery::PermissionDenied,
+          'test has no permission to publish to bush.permission.effective_permissions: ' \
+          'declare the routes it requests or publishes directly with Artery.add_outgoing_routes'
+        )
+      end
+    end
+
+    context 'when it requests a declared route' do
+      subject { make_request('bush.permission.effective_permissions') }
+
+      before do
+        allow(Artery).to receive(:outgoing_routes).and_return(%w[bush.permission.effective_permissions])
+        backend.reply('bush.permission.effective_permissions', permissions: %w[read])
+      end
+
+      it { is_expected.to eq('permissions' => %w[read]) }
+    end
+
+    context 'when it publishes to a route it has not declared' do
+      it 'fails' do
+        expect { Artery.publish('the_new_run.issues.new', {}) }.to raise_error(Artery::PermissionDenied, /publish/)
+      end
+    end
+
+    context 'when it answers a request' do
+      it 'publishes to the inbox of the requester' do
+        expect { Artery.publish('_INBOX.bush.abc.1', {}) }.not_to raise_error
+      end
+    end
+
+    context 'when it subscribes to a route of a model subscription' do
+      it 'subscribes' do
+        expect { backend.subscribe('test.source.*') }.not_to raise_error
+      end
+    end
+
+    context 'when it subscribes to a route of no subscription' do
+      it 'fails with a hint' do
+        expect { backend.subscribe('bush.users.*') }.to raise_error(Artery::PermissionDenied, /artery_watch_model/)
+      end
+    end
+
+    context 'when it checks permissions again' do
+      before do
+        allow(Artery::Permissions).to receive(:load_application)
+        backend.publish('test.healthz.check')
+        backend.publish('test.healthz.check')
+      end
+
+      it 'loads the application once' do
+        expect(Artery::Permissions).to have_received(:load_application).once
+      end
+    end
+
+    context 'when loading the application publishes' do
+      before do
+        allow(Artery::Permissions).to receive(:load_application) do
+          backend.publish('test.healthz.check')
+          backend.publish('test.healthz.check')
+        end
+      end
+
+      it 'does not load it again meanwhile' do
+        expect { backend.publish('test.healthz.check') }.not_to raise_error
+      end
+    end
+
+    context 'when another thread checks while the application loads' do
+      let(:started) { Concurrent::Event.new }
+      let(:release) { Concurrent::Event.new }
+      let(:loader) { Thread.new { backend.publish('test.healthz.check') } }
+      let(:checker) { Thread.new { backend.publish('late.route') } }
+
+      before do
+        # The route is declared by the load, so a check that does not wait for it is denied.
+        allow(Artery).to receive(:outgoing_routes) { release.set? ? %w[late.route] : [] }
+        allow(Artery::Permissions).to receive(:load_application) do
+          started.set
+          release.wait
+        end
+        loader
+        wait_until { started.set? }
+        checker
+        wait_until { checker.stop? } # blocked on the load, or done
+        release.set
+      end
+
+      after do
+        release.set
+        loader.join
+      end
+
+      it 'waits for the load' do
+        expect { checker.value }.not_to raise_error
+      end
+    end
+
+    context 'when loading the application fails' do
+      before do
+        allow(Artery::Permissions).to receive(:load_application).and_raise(NameError)
+        backend.publish('test.healthz.check')
+      rescue NameError
+        allow(Artery::Permissions).to receive(:load_application)
+        backend.publish('test.healthz.check')
+      end
+
+      it 'loads it again on the next check' do
+        expect(Artery::Permissions).to have_received(:load_application).twice
+      end
+    end
+
+    context 'without a service name' do
+      before do
+        allow(Artery).to receive(:service_name?).and_return(false)
+      end
+
+      it 'fails when the backend is set up' do
+        expect { backend }.to raise_error(Artery::Error, /need Artery.service_name/)
+      end
+    end
+  end
+
+  # A separate process with its own environment, where the models are loaded only by the strict backend itself.
+  context 'with ARTERY_STRICT_PERMISSIONS=1 and the strict mode turned off in the configuration' do
+    subject do
+      Open3.capture2({ 'RAILS_ENV' => 'test', 'ARTERY_STRICT_PERMISSIONS' => '1' }, RbConfig.ruby, '-e', script,
+                     chdir: Rails.root.to_s)
+    end
+
+    let(:script) do
+      <<~RUBY
+        require './config/environment'
+        Artery.backend_config[:strict_permissions] = false
+        Artery.use_backend :fake
+        Artery.backend.subscribe('test.source.*')
+        print Object.const_defined?(:Recipient, false) ? 'models loaded, ' : 'models not loaded, '
+        begin
+          Artery.backend.publish('the_new_run.issues.new')
+        rescue Artery::PermissionDenied
+          print 'publish denied'
+        end
+      RUBY
+    end
+
+    it { is_expected.to match(['models loaded, publish denied', be_success]) }
+  end
+end

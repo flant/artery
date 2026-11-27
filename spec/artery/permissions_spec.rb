@@ -114,4 +114,89 @@ describe Artery::Permissions do
       it { is_expected.to include(%("user": "billing_nats")) }
     end
   end
+
+  describe '#permits?' do
+    let(:permissions) { described_class.new }
+
+    # The permissions of a user; the tables below are what nats-server 2.14.10 allowed and denied it.
+    before do
+      allow(permissions).to receive_messages(publish: %w[exact.subject one.* tail.> mid.*.end *.lead],
+                                             subscribe: %w[sub.exact sub.one.* sub.tail.> sub.*.mid])
+    end
+
+    context 'when it publishes' do
+      subject { published.keys.to_h { |name| [name, permissions.permits?(:publish, name)] } }
+
+      let(:published) do
+        {
+          'exact.subject' => true,
+          'exact.subject.more' => false,
+          'exact' => false,
+          'one.a' => true,
+          'one.a.b' => false,
+          'one' => false,
+          'tail.a' => true,
+          'tail.a.b.c' => true,
+          'tail' => false,
+          'mid.x.end' => true,
+          'mid.x.y.end' => false,
+          'x.lead' => true,
+          'a.b.lead' => false,
+          'lead' => false,
+          'exact.subject.' => false,
+          'one.' => false,
+          '.lead' => false,
+          'tail..x' => false,
+          'tail.a.' => false
+        }
+      end
+
+      it { is_expected.to eq(published) }
+    end
+
+    context 'when a declared pattern is malformed' do
+      subject do
+        denied.keys.to_h do |name|
+          [name, permissions.permits?(:publish, name)]
+        end
+      end
+
+      let(:denied) do
+        { 'orders.events.write' => false, 'orders.events.read' => false, 'orders.events' => false, '' => false }
+      end
+
+      before do
+        allow(permissions).to receive(:publish).and_return(['orders.>.read', 'orders.events.', ''])
+      end
+
+      it { is_expected.to eq(denied) }
+    end
+
+    context 'when it subscribes' do
+      subject { subscribed.keys.to_h { |name| [name, permissions.permits?(:subscribe, name)] } }
+
+      let(:subscribed) do
+        {
+          'sub.exact' => true,
+          'sub.one.a' => true,
+          'sub.one.*' => true,
+          'sub.one.>' => true,
+          'sub.tail.a' => true,
+          'sub.tail.*' => true,
+          'sub.tail.>' => true,
+          'sub.tail' => false,
+          'sub.*' => false,
+          'sub.>' => false,
+          'sub.x.mid' => true,
+          'sub.*.mid' => true,
+          'sub.x.*' => false,
+          'sub.exact.*' => false,
+          'sub.*.*' => false,
+          '>' => false
+        }
+      end
+
+      it { is_expected.to eq(subscribed) }
+    end
+  end
 end
