@@ -9,6 +9,7 @@ module Artery
       PERMISSIONS_VIOLATION = /'Permissions Violation/i.freeze
       # nats-server quotes the subject as Go does, escaping quotes and backslashes.
       DENIED_SUBJECT = /Permissions Violation for .*? (?:to|of) ("(?:[^"\\]|\\.)*")/i.freeze
+      ERROR_QUEUE_SIZE = 100
       GO_ESCAPES = { 'a' => "\a", 'b' => "\b", 'f' => "\f", 'n' => "\n", 'r' => "\r", 't' => "\t", 'v' => "\v" }.freeze
 
       # nats-pure (2.0-2.8) treats every -ERR from a server with authentication as an authentication error:
@@ -27,153 +28,16 @@ module Artery
         end
       end
 
-      # Reports server errors in order on its own thread: on the reading thread of nats-pure a slow error handler
-      # would hold back the replies to other requests. Reports that do not fit into the queue are counted and the
-      # count is logged from the reporting thread, so the reading thread never waits for the log.
-      class ErrorReporter
-        QUEUE_SIZE = 100
-        STOP_TIMEOUT = 5
-        EXIT_TIMEOUT = 2
-
-        @reporters = Set.new
-        @registry = Mutex.new
-
-        class << self
-          # One exit handler shuts down every reporter still running; terminated ones are forgotten.
-          def register(reporter)
-            @registry.synchronize do
-              @exit_handler ||= at_exit { shutdown_all }
-              @reporters.delete_if(&:terminated?)
-              @reporters << reporter
-              # A reporter started while exiting logs its errors at once.
-              reporter.close if @exiting
-            end
-          end
-
-          def shutdown_all
-            reporters = @registry.synchronize do
-              @exiting = true
-              @reporters.to_a
-            end
-            reporters.each { |reporter| reporter.shutdown(EXIT_TIMEOUT) }
-          end
-
-          def unregister(reporter)
-            @registry.synchronize { @reporters.delete(reporter) }
-          end
-
-          def active
-            @registry.synchronize { @reporters.to_a }
-          end
-
-          # A failing logger, such as one writing to a closed stream, must not stop a report or the reading thread.
-          def log(level, message)
-            Artery.logger.public_send(level, message)
-          rescue StandardError => e
-            warn "[Artery] #{message} (logging failed: #{e.inspect})"
-          end
-        end
-
-        # A reporter that follows a stopped one sends its reports after the reports of the stopped one.
-        def initialize(after: nil)
-          # One thread keeps the order, started on the first report; SingleThreadExecutor would not bound the queue.
-          @executor = Concurrent::ThreadPoolExecutor.new(min_threads: 0, max_threads: 1,
-                                                         max_queue: QUEUE_SIZE, fallback_policy: :abort)
-          @dropped = Concurrent::AtomicFixnum.new
-          @stopping = Mutex.new
-          @after = after
-          self.class.register(self)
-        end
-
-        def post(description, &report)
-          @executor.post do
-            wait_for_previous
-            log_dropped
-            run_in_app_executor(&report)
-          rescue StandardError => e
-            # A task that raises is not counted as completed, and the reporter would never be idle again.
-            self.class.log(:error, "Failed to report NATS error #{description}: #{e.inspect}")
-          end
-        rescue Concurrent::RejectedExecutionError
-          # Once the reporter is shut down nothing would log the count, and no reply is waited for any more.
-          @stopping.synchronize do
-            if @executor.running?
-              @dropped.increment
-            else
-              self.class.log(:error, "NATS error not reported, the reporter is shut down: #{description}")
-            end
-          end
-        end
-
-        # Waits until the reports posted so far are done; they keep being sent if it takes longer.
-        def drain(timeout = STOP_TIMEOUT)
-          deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
-          sleep 0.01 until idle? || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
-          log_dropped
-          return if idle?
-
-          self.class.log(:warn, "NATS error reports still pending #{timeout} s after stopping, they keep being sent")
-        end
-
-        def idle?
-          @executor.completed_task_count == @executor.scheduled_task_count
-        end
-
-        # Takes no more reports; the reports already posted are still sent and the thread ends after them.
-        def close
-          @executor.shutdown
-        end
-
-        def terminated?
-          @executor.shutdown?
-        end
-
-        def wait_for_termination(timeout = nil)
-          @executor.wait_for_termination(timeout)
-        end
-
-        # Stops reporting, also when the process exits; reports not done by then are lost.
-        def shutdown(timeout = 5)
-          @executor.shutdown
-          done = @executor.wait_for_termination(timeout)
-          @stopping.synchronize { log_dropped }
-          return self.class.unregister(self) if done
-
-          self.class.log(:error, "NATS error reports not done #{timeout} s after shutting down, they are lost")
-        end
-
-        private
-
-        # The reporting thread outlives its reports, so the application executor returns what a report checked out,
-        # such as a database connection, as it does after a request.
-        def run_in_app_executor(&report)
-          app = ::Rails.application if defined?(::Rails) && ::Rails.respond_to?(:application)
-          return report.call unless app.respond_to?(:executor)
-
-          app.executor.wrap(&report)
-        end
-
-        # Runs on the reporting thread only.
-        def wait_for_previous
-          @after&.wait_for_termination
-          @after = nil
-        end
-
-        def log_dropped
-          count = @dropped.value
-          count = @dropped.value until count.zero? || @dropped.compare_and_set(count, 0)
-          return if count.zero?
-
-          self.class.log(:error, "#{count} NATS error report(s) dropped: #{QUEUE_SIZE} reports were already pending")
-        end
-      end
-
       def client
         @client || connect
       end
 
+      # Error handlers of the application run on their own thread, in order: on the reading thread of nats-pure a
+      # slow handler would hold back the replies to other requests. Reports beyond the queue are dropped.
       def error_reporter
-        @error_reporter ||= ErrorReporter.new(after: @stopped_reporter)
+        @error_reporter ||= Concurrent::ThreadPoolExecutor.new(
+          min_threads: 0, max_threads: 1, max_queue: ERROR_QUEUE_SIZE, fallback_policy: :discard
+        )
       end
 
       delegate :connected?, :connecting?, :subscribe, :flush, to: :client
@@ -211,7 +75,8 @@ module Artery
 
       def stop
         client.close
-        stop_error_reporter
+        @error_reporter&.shutdown
+        @error_reporter = nil
         @stop = true
       end
 
@@ -241,22 +106,6 @@ module Artery
 
       private
 
-      # Frees the reporting thread: at once when the posted reports are sent, otherwise after them. A reporter still
-      # sending them is kept for the next one to follow, so the reports keep their order.
-      def stop_error_reporter
-        return unless @error_reporter
-
-        @error_reporter.drain
-        if @error_reporter.idle?
-          @error_reporter.shutdown
-          @stopped_reporter = nil if @stopped_reporter&.terminated?
-        else
-          @error_reporter.close
-          @stopped_reporter = @error_reporter
-        end
-        @error_reporter = nil
-      end
-
       # Reports errors sent by the server. Network errors are left to the disconnect and reconnect events.
       def report_error(error)
         return unless error.is_a?(::NATS::IO::ServerError) || error.is_a?(::NATS::IO::AuthError)
@@ -268,15 +117,24 @@ module Artery
         subject = denied_subject(message)
         error_class = PERMISSIONS_VIOLATION.match?(message) ? PermissionError : BackendError
 
-        error_reporter.post(message) do
-          isolate_reporting(error) do
-            Artery::Instrumentation.instrument(:connection, state: :error, error: message, subject: subject)
-          end
-          isolate_reporting(error) do
-            Artery.handle_error error_class.new("NATS server error: #{message}",
-                                                original_exception: error, subject: subject)
-          end
+        reported = error_class.new("NATS server error: #{message}", original_exception: error, subject: subject)
+        error_reporter.post { handle_reported_error(reported) }
+        Artery::Instrumentation.instrument(:connection, state: :error, error: message, subject: subject)
+      rescue StandardError => e
+        # Raised on the reading thread, it would make nats-pure reconnect.
+        warn "[Artery] Failed to log NATS error #{error.inspect}: #{e.inspect}"
+      end
+
+      # The application executor returns what the handler checked out, such as a database connection, since the
+      # reporting thread outlives the report.
+      def handle_reported_error(error)
+        if defined?(::Rails.application.executor)
+          ::Rails.application.executor.wrap { Artery.handle_error(error) }
+        else
+          Artery.handle_error(error)
         end
+      rescue StandardError => e
+        Artery.logger.error "Failed to report NATS error #{error.inspect}: #{e.inspect}"
       end
 
       # Unquotes the subject as Go's strconv.Quote quotes it, keeping printable UTF-8.
@@ -286,13 +144,6 @@ module Artery
           code = Regexp.last_match(1)
           code.length > 1 ? [code[1..].hex].pack('U') : GO_ESCAPES.fetch(code, code)
         end
-      end
-
-      # Keeps a failing reporting step from skipping the others.
-      def isolate_reporting(error)
-        yield
-      rescue StandardError => e
-        ErrorReporter.log(:error, "Failed to report NATS error #{error.inspect}: #{e.inspect}")
       end
 
       # Restricted NATS users may subscribe only to inboxes of their own service.
