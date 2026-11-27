@@ -148,6 +148,30 @@ describe Artery::Backends::NATSPure, '#connect' do
     end
   end
 
+  context 'when the backend is connected again while a report is still running' do
+    let(:release) { Concurrent::Event.new }
+    let(:reported) { [] }
+
+    before do
+      stub_const('Artery::Backends::NATSPure::ErrorReporter::STOP_TIMEOUT', 0.1)
+      allow(Artery).to receive(:handle_error) do |error|
+        release.wait(10) if error.message.include?('First')
+        reported << error.message
+      end
+      client.send(:err_cb_call, client, NATS::IO::ServerError.new("'First'"), nil)
+      backend.stop
+      backend.connect
+      client.send(:err_cb_call, client, NATS::IO::ServerError.new("'Second'"), nil)
+      backend.error_reporter.drain(0.2) # a second queue would report 'Second' meanwhile
+      release.set
+      backend.error_reporter.drain
+    end
+
+    it 'reports the errors in order' do
+      expect(reported).to eq(["NATS server error: 'First'", "NATS server error: 'Second'"])
+    end
+  end
+
   context 'when the backend is stopped and connected again' do
     let(:reported_error) { having_attributes(message: "NATS server error: 'Second'") }
 

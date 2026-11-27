@@ -9,8 +9,8 @@ describe Artery::Backends::NATSPure::ErrorReporter do
   before do
     stub_const("#{described_class}::QUEUE_SIZE", 1)
     allow(Artery).to receive(:logger).and_return(logger)
-    reporter.post { release.wait(5) }
-    reporter.post { nil }
+    reporter.post('first') { release.wait(5) }
+    reporter.post('second') { nil }
   end
 
   after do
@@ -20,7 +20,7 @@ describe Artery::Backends::NATSPure::ErrorReporter do
 
   context 'when more reports are pending than the queue holds' do
     before do
-      reporter.post { nil }
+      reporter.post('third') { nil }
       release.set
       reporter.shutdown
     end
@@ -37,6 +37,18 @@ describe Artery::Backends::NATSPure::ErrorReporter do
 
     it 'logs that they keep being sent' do
       expect(logger).to have_received(:warn).with(/still pending 0.1 s after stopping, they keep being sent/)
+    end
+  end
+
+  context 'when an error arrives after the process started exiting' do
+    before do
+      release.set
+      reporter.shutdown
+      reporter.post('late') { nil }
+    end
+
+    it 'logs the error' do
+      expect(logger).to have_received(:error).with(/not reported, the process is exiting: late/)
     end
   end
 
