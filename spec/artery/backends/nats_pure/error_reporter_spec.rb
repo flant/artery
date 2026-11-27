@@ -9,6 +9,8 @@ describe Artery::Backends::NATSPure::ErrorReporter do
   before do
     stub_const("#{described_class}::QUEUE_SIZE", 1)
     allow(Artery).to receive(:logger).and_return(logger)
+    reporter.post { release.wait(5) }
+    reporter.post { nil }
   end
 
   after do
@@ -18,13 +20,23 @@ describe Artery::Backends::NATSPure::ErrorReporter do
 
   context 'when more reports are pending than the queue holds' do
     before do
-      reporter.post('first') { release.wait(5) }
-      reporter.post('second') { nil }
-      reporter.post('third') { nil }
+      reporter.post { nil }
+      release.set
+      reporter.shutdown
     end
 
-    it 'logs the report it drops' do
-      expect(logger).to have_received(:error).with(/not reported, too many reports are pending/)
+    it 'logs how many it dropped' do
+      expect(logger).to have_received(:error).with(/1 NATS error report\(s\) dropped/)
+    end
+  end
+
+  context 'when the pending reports are not done in time on stopping' do
+    before do
+      reporter.shutdown(0.1)
+    end
+
+    it 'logs that they are lost' do
+      expect(logger).to have_received(:error).with(/not done 0.1 s after stopping/)
     end
   end
 end
