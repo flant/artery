@@ -9,6 +9,7 @@ module Artery
       PERMISSIONS_VIOLATION = /'Permissions Violation/i.freeze
       # nats-server quotes the subject as Go does, escaping quotes and backslashes.
       DENIED_SUBJECT = /Permissions Violation for .*? (?:to|of) ("(?:[^"\\]|\\.)*")/i.freeze
+      GO_ESCAPES = { 'a' => "\a", 'b' => "\b", 'f' => "\f", 'n' => "\n", 'r' => "\r", 't' => "\t", 'v' => "\v" }.freeze
 
       # nats-pure (2.0-2.8) treats every -ERR from a server with authentication as an authentication error:
       # it drops the connection and removes the server from the pool once a reconnect attempt fails,
@@ -27,7 +28,8 @@ module Artery
       end
 
       # Reports server errors in order on its own thread: on the reading thread of nats-pure a slow error handler
-      # would hold back the replies to other requests. A report that does not fit into the queue is only logged.
+      # would hold back the replies to other requests. Reports that do not fit into the queue are counted and the
+      # count is logged from the reporting thread, so the reading thread never waits for the log.
       class ErrorReporter
         QUEUE_SIZE = 100
         EXIT_TIMEOUT = 2
@@ -36,26 +38,42 @@ module Artery
           # One thread keeps the order; SingleThreadExecutor would not bound the queue.
           @executor = Concurrent::ThreadPoolExecutor.new(min_threads: 1, max_threads: 1, max_queue: QUEUE_SIZE,
                                                          fallback_policy: :abort)
-          # Reports still pending when the process exits are sent before it ends.
+          @dropped = Concurrent::AtomicFixnum.new
           at_exit { shutdown(EXIT_TIMEOUT) }
         end
 
-        def post(description, &report)
-          @executor.post(&report)
+        def post(&report)
+          @executor.post do
+            log_dropped
+            report.call
+          end
         rescue Concurrent::RejectedExecutionError
-          Artery.logger.error "NATS error not reported, too many reports are pending: #{description}"
+          @dropped.increment
         end
 
         # Waits until the reports posted so far are done.
         def drain(timeout = 5)
           done = Concurrent::Event.new
-          post('drain') { done.set }
+          post { done.set }
           done.wait(timeout)
         end
 
+        # Waits for the pending reports, and logs those that are dropped or not done in time.
         def shutdown(timeout = 5)
           @executor.shutdown
-          @executor.wait_for_termination(timeout)
+          done = @executor.wait_for_termination(timeout)
+          log_dropped
+          Artery.logger.error "NATS error reports not done #{timeout} s after stopping, they are lost" unless done
+        end
+
+        private
+
+        def log_dropped
+          count = @dropped.value
+          return unless count.positive?
+
+          @dropped.decrement(count)
+          Artery.logger.error "#{count} NATS error report(s) dropped: #{QUEUE_SIZE} reports were already pending"
         end
       end
 
@@ -102,7 +120,8 @@ module Artery
 
       def stop
         client.close
-        error_reporter.shutdown
+        @error_reporter&.shutdown
+        @error_reporter = nil
         @stop = true
       end
 
@@ -138,11 +157,12 @@ module Artery
 
         # nats-pure passes these errors unraised, and error handlers need a backtrace.
         error.set_backtrace(caller) unless error.backtrace
-        message = error.message.to_s
+        # nats-pure reads the error as bytes; nats-server sends UTF-8.
+        message = error.message.to_s.dup.force_encoding(Encoding::UTF_8).scrub
         subject = denied_subject(message)
         error_class = PERMISSIONS_VIOLATION.match?(message) ? PermissionError : BackendError
 
-        error_reporter.post(message) do
+        error_reporter.post do
           isolate_reporting(error) do
             Artery::Instrumentation.instrument(:connection, state: :error, error: message, subject: subject)
           end
@@ -153,14 +173,16 @@ module Artery
         end
       end
 
+      # Unquotes the subject as Go's strconv.Quote quotes it, keeping printable UTF-8.
       def denied_subject(message)
         quoted = message[DENIED_SUBJECT, 1]
-        quoted&.undump
-      rescue RuntimeError
-        quoted[1..-2]
+        quoted && quoted[1..-2].gsub(/\\(x\h{2}|u\h{4}|U\h{8}|.)/) do
+          code = Regexp.last_match(1)
+          code.length > 1 ? [code[1..].hex].pack('U') : GO_ESCAPES.fetch(code, code)
+        end
       end
 
-      # Runs in the reading thread of nats-pure: an exception here would make it reconnect.
+      # Keeps a failing reporting step from skipping the others.
       def isolate_reporting(error)
         yield
       rescue StandardError => e

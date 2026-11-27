@@ -111,22 +111,50 @@ describe Artery::Backends::NATSPure, '#connect' do
   end
 
   context 'when the error handler is slow' do
-    # The thread is returned once it finishes, nil if it is still held after a second.
-    subject do
-      Thread.new { client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"')) }.join(1)
-    end
+    subject { client.request('artery.spec.echo', 'ping', timeout: 1).data }
 
+    let(:entered) { Concurrent::Event.new }
     let(:release) { Concurrent::Event.new }
 
     before do
-      allow(Artery).to receive(:handle_error) { release.wait(5) }
+      # Reports the -ERR without reconnecting, on the thread that reads from the server.
+      allow(client).to receive(:process_op_error) { |error| client.send(:err_cb_call, client, error, nil) }
+      allow(Artery).to receive(:handle_error) { entered.set && release.wait(5) }
+      client.subscribe('artery.spec.echo') { |message| message.respond(message.data) }
+      client.subscribe('artery..invalid') { nil } # the server answers with -ERR 'Invalid Subject'
+      entered.wait(2)
     end
 
     after do
       release.set
     end
 
-    it { is_expected.to be_a(Thread) }
+    it { is_expected.to eq('ping') }
+  end
+
+  context 'when the server denies a subject with a quote and non-ASCII characters' do
+    let(:reported_error) { having_attributes(artery_context: { subject: 'заказ."новый"' }) }
+
+    before do
+      client.send(:process_err, %('Permissions Violation for Publish to "заказ.\\"новый\\""').b)
+      backend.error_reporter.drain
+    end
+
+    it 'reports the subject as published' do
+      expect(Artery).to have_received(:handle_error).with(reported_error)
+    end
+  end
+
+  context 'when the backend is stopped and reports an error again' do
+    before do
+      backend.stop
+      client.send(:err_cb_call, client, NATS::IO::ServerError.new("'Unknown Protocol Operation'"), nil)
+      backend.error_reporter.drain
+    end
+
+    it 'still reports it' do
+      expect(Artery).to have_received(:handle_error).with(an_instance_of(Artery::BackendError))
+    end
   end
 
   context 'when the server rejects authentication' do
