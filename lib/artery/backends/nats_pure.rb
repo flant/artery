@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
+require 'concurrent'
 require 'nats/client'
 
 module Artery
   module Backends
     class NATSPure < Base
       PERMISSIONS_VIOLATION = /'Permissions Violation/i.freeze
-      DENIED_SUBJECT = /Permissions Violation for .*? (?:to|of) "([^"]*)"/i.freeze
+      # nats-server quotes the subject as Go does, escaping quotes and backslashes.
+      DENIED_SUBJECT = /Permissions Violation for .*? (?:to|of) ("(?:[^"\\]|\\.)*")/i.freeze
 
       # nats-pure (2.0-2.8) treats every -ERR from a server with authentication as an authentication error:
       # it drops the connection and removes the server from the pool once a reconnect attempt fails,
@@ -24,8 +26,45 @@ module Artery
         end
       end
 
+      # Reports server errors in order on its own thread: on the reading thread of nats-pure a slow error handler
+      # would hold back the replies to other requests. A report that does not fit into the queue is only logged.
+      class ErrorReporter
+        QUEUE_SIZE = 100
+        EXIT_TIMEOUT = 2
+
+        def initialize
+          # One thread keeps the order; SingleThreadExecutor would not bound the queue.
+          @executor = Concurrent::ThreadPoolExecutor.new(min_threads: 1, max_threads: 1, max_queue: QUEUE_SIZE,
+                                                         fallback_policy: :abort)
+          # Reports still pending when the process exits are sent before it ends.
+          at_exit { shutdown(EXIT_TIMEOUT) }
+        end
+
+        def post(description, &report)
+          @executor.post(&report)
+        rescue Concurrent::RejectedExecutionError
+          Artery.logger.error "NATS error not reported, too many reports are pending: #{description}"
+        end
+
+        # Waits until the reports posted so far are done.
+        def drain(timeout = 5)
+          done = Concurrent::Event.new
+          post('drain') { done.set }
+          done.wait(timeout)
+        end
+
+        def shutdown(timeout = 5)
+          @executor.shutdown
+          @executor.wait_for_termination(timeout)
+        end
+      end
+
       def client
         @client || connect
+      end
+
+      def error_reporter
+        @error_reporter ||= ErrorReporter.new
       end
 
       delegate :connected?, :connecting?, :subscribe, :flush, to: :client
@@ -63,6 +102,7 @@ module Artery
 
       def stop
         client.close
+        error_reporter.shutdown
         @stop = true
       end
 
@@ -99,16 +139,25 @@ module Artery
         # nats-pure passes these errors unraised, and error handlers need a backtrace.
         error.set_backtrace(caller) unless error.backtrace
         message = error.message.to_s
-        subject = message[DENIED_SUBJECT, 1]
+        subject = denied_subject(message)
         error_class = PERMISSIONS_VIOLATION.match?(message) ? PermissionError : BackendError
 
-        isolate_reporting(error) do
-          Artery::Instrumentation.instrument(:connection, state: :error, error: message, subject: subject)
+        error_reporter.post(message) do
+          isolate_reporting(error) do
+            Artery::Instrumentation.instrument(:connection, state: :error, error: message, subject: subject)
+          end
+          isolate_reporting(error) do
+            Artery.handle_error error_class.new("NATS server error: #{message}",
+                                                original_exception: error, subject: subject)
+          end
         end
-        isolate_reporting(error) do
-          Artery.handle_error error_class.new("NATS server error: #{message}",
-                                              original_exception: error, subject: subject)
-        end
+      end
+
+      def denied_subject(message)
+        quoted = message[DENIED_SUBJECT, 1]
+        quoted&.undump
+      rescue RuntimeError
+        quoted[1..-2]
       end
 
       # Runs in the reading thread of nats-pure: an exception here would make it reconnect.
