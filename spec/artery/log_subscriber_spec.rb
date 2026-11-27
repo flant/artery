@@ -151,6 +151,16 @@ describe Artery::LogSubscriber do
 
       expect(log_contents).to include('[Backend] disconnected')
     end
+
+    context 'when the server reports an error' do
+      before do
+        Artery::Instrumentation.instrument(:connection, state: :error, error: "'Authorization Violation'")
+      end
+
+      it 'logs it' do
+        expect(log_contents).to include("[Backend] 'Authorization Violation'")
+      end
+    end
   end
 
   describe 'worker event' do

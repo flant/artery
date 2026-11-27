@@ -26,6 +26,10 @@ module Artery
           @service_name || raise('Artery service_name must be configured!')
         end
 
+        def service_name?
+          @service_name.present?
+        end
+
         def logger
           @logger || (self.logger = defined?(Rails) ? Rails.logger : Logger.new($stdout))
         end
@@ -55,6 +59,16 @@ module Artery
 
         def error_handler
           @error_handler || (defined?(Artery::SentryErrorHandler) ? Artery::SentryErrorHandler : Artery::ErrorHandler)
+        end
+
+        # Routes requested or published directly (`Artery.request`, `Artery.publish`), which models and
+        # subscriptions do not show. Applications and gems add theirs to get NATS permissions for them.
+        def outgoing_routes
+          @outgoing_routes ||= []
+        end
+
+        def add_outgoing_routes(*routes)
+          outgoing_routes.concat(routes.flatten.map(&:to_s))
         end
 
         def backend_config

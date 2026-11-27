@@ -45,10 +45,10 @@ module Artery
 
           @sync.execute services
 
-          subscriptions_on_services.each do |uri, subscriptions|
+          subscriptions_on_services.each_key do |uri|
             Artery::Instrumentation.instrument(:worker, action: :subscribing, route: uri.to_s)
             Artery.subscribe uri.to_route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
-              dispatch(subscriptions, data, reply, from)
+              dispatch(current_subscriptions(uri), data, reply, from)
             end
           end
         rescue StandardError => e
@@ -59,7 +59,28 @@ module Artery
 
           Artery.handle_error Error.new('Worker failed 5 times and exited.')
         end
+
+        confirm_subscriptions
       end
+    end
+
+    # Makes a denied subscription surface on start: its error arrives before the server confirms the flush.
+    def confirm_subscriptions
+      Artery.backend.flush
+    rescue StandardError => e
+      Artery.handle_error Error.new("WORKER ERROR: subscriptions not confirmed: #{e.inspect}", original_exception: e)
+    end
+
+    # Code reloading in development replaces the subscriptions of a model. Until the model is loaded again, the
+    # worker keeps handling its messages with the subscriptions it had when unloaded.
+    def current_subscriptions(uri)
+      current = Artery.subscriptions&.[](uri) || []
+      unloaded = Artery.unloaded_subscriptions[uri]
+      return current unless unloaded
+
+      # A class created with Class.new registers before it is named, so it is matched by its name here.
+      loaded = Artery.models.filter_map(&:name)
+      current + unloaded.reject { |subscription| loaded.include?(subscription.subscriber.name) }
     end
 
     def dispatch(subscriptions, data, reply, from)

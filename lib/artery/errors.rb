@@ -34,6 +34,12 @@ module Artery
   # Nobody listens on the requested route, for example while the service that answers it is being deployed.
   class NoRespondersError < Error; end
 
+  # Asynchronous error reported by the backend server, for example a failed authentication on reconnect.
+  class BackendError < Error; end
+
+  # The server denied a publish or a subscription to the subject in the error context.
+  class PermissionError < BackendError; end
+
   class FormatError < Error
     attr_accessor :route, :msg
 

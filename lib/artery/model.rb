@@ -23,6 +23,8 @@ module Artery
       include Callbacks if artery_source_model?
 
       artery_scope :all, -> { all }
+
+      Artery.register_model(self)
     end
 
     module ClassMethods
