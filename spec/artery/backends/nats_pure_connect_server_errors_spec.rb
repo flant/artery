@@ -15,7 +15,7 @@ describe Artery::Backends::NATSPure, '#connect' do
   end
 
   after do
-    client.close
+    backend.stop
   end
 
   context 'when the server denies a publish' do

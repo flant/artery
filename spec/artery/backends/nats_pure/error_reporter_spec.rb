@@ -63,6 +63,22 @@ describe Artery::Backends::NATSPure::ErrorReporter do
     end
   end
 
+  context 'when a reporter starts after the process started exiting' do
+    before do
+      release.set
+      described_class.shutdown_all
+      described_class.new.post('late') { nil }
+    end
+
+    after do
+      described_class.instance_variable_set(:@exiting, false)
+    end
+
+    it 'logs its errors' do
+      expect(logger).to have_received(:error).with(/not reported, the reporter is shut down: late/)
+    end
+  end
+
   context 'when the pending reports are not done in time on exit' do
     before do
       reporter.shutdown(0.1)

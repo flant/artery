@@ -42,10 +42,20 @@ module Artery
           # One exit handler shuts down every reporter still running; terminated ones are forgotten.
           def register(reporter)
             @registry.synchronize do
-              @exit_handler ||= at_exit { active.each { |running| running.shutdown(EXIT_TIMEOUT) } }
+              @exit_handler ||= at_exit { shutdown_all }
               @reporters.delete_if(&:terminated?)
               @reporters << reporter
+              # A reporter started while exiting logs its errors at once.
+              reporter.close if @exiting
             end
+          end
+
+          def shutdown_all
+            reporters = @registry.synchronize do
+              @exiting = true
+              @reporters.to_a
+            end
+            reporters.each { |reporter| reporter.shutdown(EXIT_TIMEOUT) }
           end
 
           def unregister(reporter)
