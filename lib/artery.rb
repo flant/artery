@@ -70,8 +70,10 @@ module Artery
       return unless subscriptions
 
       unloaded = subscriptions.transform_values { |list| list.select { |s| s.subscriber.equal?(model) } }
-      self.unloaded_subscriptions = unloaded_subscriptions.merge(unloaded) { |_uri, kept, added| kept + added }
-                                                          .reject { |_uri, list| list.empty? }
+      # Only the last version of a model is kept, also when an earlier one was not named on registration.
+      kept = without_subscriber(unloaded_subscriptions) { |subscriber| model.name && subscriber.name == model.name }
+      self.unloaded_subscriptions = kept.merge(unloaded) { |_uri, earlier, added| earlier + added }
+                                        .reject { |_uri, list| list.empty? }
       self.subscriptions = without_subscriber(subscriptions) { |subscriber| subscriber.equal?(model) }
     end
 
