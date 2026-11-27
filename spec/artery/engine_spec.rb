@@ -11,12 +11,12 @@ describe Artery::Engine do
 
     before do
       stub_const('Archive::Charge', charge)
-      allow(Rails).to receive(:autoloaders).and_return(instance_double(Rails::Autoloaders, main: loader))
+      allow(Rails).to receive(:autoloaders).and_return(object_double(Rails.autoloaders, main: loader))
       allow(reloader).to receive(:before_class_unload) { |&hook| hooks << hook }
       Artery.register_model(charge)
       described_class.initializers.find { |initializer| initializer.name == 'artery.models_reloading' }
                      .run(instance_double(Rails::Application, reloader: reloader))
-      hooks.each(&:call)
+      hooks.fetch(0).call
     end
 
     after do

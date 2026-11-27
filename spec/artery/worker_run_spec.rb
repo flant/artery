@@ -9,7 +9,8 @@ describe Artery::Worker, '#run' do
     instance_double(Artery::Subscription, uri: Artery::Routing.uri('test.items.new'), subscriber: item, handle: nil)
   end
   let(:reloaded) do
-    instance_double(Artery::Subscription, uri: Artery::Routing.uri('test.items.new'), subscriber: item, handle: nil)
+    instance_double(Artery::Subscription, uri: Artery::Routing.uri('test.items.new'),
+                                          subscriber: class_double(Source, name: 'Item'), handle: nil)
   end
   let(:callbacks) { {} }
 
@@ -32,6 +33,7 @@ describe Artery::Worker, '#run' do
 
   after do
     Artery.unregister_model(item)
+    Artery.unregister_model(reloaded.subscriber)
   end
 
   context 'without code reloading' do
@@ -58,7 +60,7 @@ describe Artery::Worker, '#run' do
   context 'when code reloading loads the model again' do
     before do
       Artery.unregister_model(item)
-      Artery.register_model(item)
+      Artery.register_model(reloaded.subscriber)
       Artery.add_subscription(reloaded)
       callbacks['test.items.new'].call('{}', nil, 'test.items.new')
     end
@@ -72,7 +74,7 @@ describe Artery::Worker, '#run' do
   context 'when code reloading loads the model again without the subscription' do
     before do
       Artery.unregister_model(item)
-      Artery.register_model(item)
+      Artery.register_model(reloaded.subscriber)
       callbacks['test.items.new'].call('{}', nil, 'test.items.new')
     end
 
@@ -84,9 +86,9 @@ describe Artery::Worker, '#run' do
   context 'when code reloading loads the model again before it is named' do
     before do
       Artery.unregister_model(item)
-      allow(item).to receive(:name).and_return(nil)
-      Artery.register_model(item)
-      allow(item).to receive(:name).and_return('Item')
+      allow(reloaded.subscriber).to receive(:name).and_return(nil)
+      Artery.register_model(reloaded.subscriber)
+      allow(reloaded.subscriber).to receive(:name).and_return('Item')
       Artery.add_subscription(reloaded)
       callbacks['test.items.new'].call('{}', nil, 'test.items.new')
     end
@@ -100,11 +102,11 @@ describe Artery::Worker, '#run' do
   context 'when code reloading unloads once more the model loaded again before it was named' do
     before do
       Artery.unregister_model(item)
-      allow(item).to receive(:name).and_return(nil)
-      Artery.register_model(item)
-      allow(item).to receive(:name).and_return('Item')
+      allow(reloaded.subscriber).to receive(:name).and_return(nil)
+      Artery.register_model(reloaded.subscriber)
+      allow(reloaded.subscriber).to receive(:name).and_return('Item')
       Artery.add_subscription(reloaded)
-      Artery.unregister_model(item)
+      Artery.unregister_model(reloaded.subscriber)
       callbacks['test.items.new'].call('{}', nil, 'test.items.new')
     end
 
@@ -117,9 +119,9 @@ describe Artery::Worker, '#run' do
   context 'when code reloading unloads the model loaded again' do
     before do
       Artery.unregister_model(item)
-      Artery.register_model(item)
+      Artery.register_model(reloaded.subscriber)
       Artery.add_subscription(reloaded)
-      Artery.unregister_model(item)
+      Artery.unregister_model(reloaded.subscriber)
       callbacks['test.items.new'].call('{}', nil, 'test.items.new')
     end
 
