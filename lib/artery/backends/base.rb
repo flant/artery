@@ -9,6 +9,13 @@ module Artery
         @config = config
       end
 
+      # Prefix of the inboxes that receive replies to requests; nil keeps the default of the client library.
+      # Restricted NATS users may subscribe only to inboxes of their own service.
+      def inbox_prefix
+        config[:inbox_prefix].presence || ENV['ARTERY_INBOX_PREFIX'].presence ||
+          ("_INBOX.#{Artery.service_name}" if Artery.service_name?)
+      end
+
       def start(*_args)
         raise NotImplementedError
       end

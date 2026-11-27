@@ -33,6 +33,10 @@ If a subscription raises an unhandled exception, the worker reports it and runs 
 
 An explicit success or error reply takes precedence over this fallback. If all handlers finish normally without replying, the requester still waits for its timeout. Replies from other processes or asynchronous jobs are outside the worker's tracking scope.
 
+## Code reloading
+
+The worker picks up reloaded handlers of its models but subscribes to NATS subjects only on start. After adding or removing a subscription route, restart `artery-worker`: until then a new route gets no messages, and a request on a removed one may reach this worker and time out.
+
 ## NATS permissions
 
 Artery works with NATS users whose permissions allow only the subjects of their service.
@@ -41,6 +45,60 @@ Artery works with NATS users whose permissions allow only the subjects of their 
 - When the server denies a publish or a subscription, the connection stays open. The error is logged at once and reported through the error handler as `Artery::PermissionError` with the denied subject in its context. The error handler runs on its own thread, so a slow handler delays no replies, and on Rails 5 and later inside the Rails executor, so database connections it uses go back to the pool. Reports still pending when the process exits, or beyond 100 pending ones, reach only the log. Other server errors on an established connection, such as a failed authentication on reconnect, are reported as `Artery::BackendError`. A stale connection only reconnects, and a failure of the first connect is still raised by `Artery.connect`.
 - A request to a denied subject fails with `Artery::TimeoutError` after the request timeout.
 - On start, the worker waits until the server has processed its subscriptions, so a denied subscription is reported right away. A denied subscription is not retried until the connection is re-established. This includes the reply inbox, which every process subscribes to once, on its first request (unless requests use `old_style`): once the permissions are fixed, restart every process that was denied, not only the worker.
+
+### Generating permissions
+
+`rake artery:permissions` loads the application and prints its user entry for the `authorization.users` list of `nats.conf`. The subjects come from:
+
+- `Artery.models`, the classes that call `artery_model`: a source model publishes its events;
+- `Artery.subscriptions`: the worker subscribes to them, and a subscription requests `get`, `get_updates` and `get_all` of the watched model as its handlers and synchronization options need;
+- health checks: the service's own `healthz.check` and `healthz.worker`, and `healthz.check` of `ARTERY_CHECK_ESSENTIAL_SERVICES` and of the services it subscribes to;
+- the inbox prefix described above: `subscribe` on it, and `publish` on it as well when it is outside `_INBOX`, so the service can answer itself;
+- outgoing routes declared by the application or by gems.
+
+Routes requested or published directly with `Artery.request` or `Artery.publish` are not visible from models and subscriptions. Declare them, for example in an initializer; a gem declares its own the same way:
+
+```ruby
+Artery.configure do |config|
+  config.add_outgoing_routes 'madison.events.new', 'license_deckhouse.license.daas_tokens'
+end
+```
+
+Declare the same way the inbox prefixes of requesters outside `_INBOX` (`REPLIES.billing.>`), and `<service>.healthz.check` of a service that `artery-check <service>` checks while the service neither subscribes to it nor lists it in `ARTERY_CHECK_ESSENTIAL_SERVICES`.
+
+Subscriptions made with `Artery.subscribe` outside models are not included, apart from the health checks of Artery itself.
+
+The user is named after the service; pass another name as the second task argument. Nothing is read from the connection credentials. The password is a reference to a variable holding its bcrypt hash, `$<SERVICE>_PASSWORD_HASH` by default; pass another name as the first task argument. Routes are sorted and unique, so the output can be compared with the configuration by a diff. Run the task with `ARTERY_CHECK_ESSENTIAL_SERVICES` set as in the deployment.
+
+When a source model is removed or renamed, keep its old route until the old processes are stopped and the publisher has sent the messages already queued for it.
+
+```console
+$ bundle exec rake "artery:permissions[EMERGENCY_CONTACT_PASSWORD_HASH]"
+{
+  "user": "emergency_contact",
+  "password": $EMERGENCY_CONTACT_PASSWORD_HASH,
+  "permissions": {
+    "publish": {
+      "allow": [
+        "_INBOX.>",
+        "bush.healthz.check",
+        "bush.projects.get",
+        "bush.projects.get_all",
+        "bush.projects.get_updates",
+        "emergency_contact.healthz.check"
+      ]
+    },
+    "subscribe": {
+      "allow": [
+        "_INBOX.emergency_contact.>",
+        "bush.project.*",
+        "emergency_contact.healthz.check",
+        "emergency_contact.healthz.worker"
+      ]
+    }
+  }
+}
+```
 
 ## Publishing modes
 

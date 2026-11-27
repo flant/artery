@@ -121,12 +121,7 @@ module Artery
       private
 
       def request_publisher_latest_index!
-        route = Routing.uri(
-          service: uri.service,
-          model: uri.model,
-          plural: true,
-          action: :get_all
-        ).to_route
+        route = uri.request_uri(:get_all).to_route
 
         remote_index = nil
 
@@ -181,7 +176,7 @@ module Artery
 
       def receive_all_once # rubocop:disable Metrics/AbcSize
         should_continue = false
-        all_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_all)
+        all_uri = uri.request_uri(:get_all)
 
         page = info.synchronization_page ? info.synchronization_page + 1 : 0 if synchronization_per_page
 
@@ -235,7 +230,7 @@ module Artery
 
       def receive_updates_once # rubocop:disable Metrics/AbcSize
         should_continue = false
-        updates_uri = Routing.uri(service: uri.service, model: uri.model, plural: true, action: :get_updates)
+        updates_uri = uri.request_uri(:get_updates)
         updates_data = {
           after_index: latest_message_index
         }

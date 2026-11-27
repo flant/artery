@@ -40,6 +40,11 @@ module Artery
         (plural? ? model.to_s.pluralize : model)
       end
 
+      # Route of a request about the model to its service: get, get_updates, get_all.
+      def request_uri(action)
+        URI.new(service: service, model: model, plural: true, action: action)
+      end
+
       # Make them identical for Hash if route is identical
       def ==(other)
         to_s == other.to_s

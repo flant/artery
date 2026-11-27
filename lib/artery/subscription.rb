@@ -9,6 +9,8 @@ module Artery
 
     attr_accessor :uri, :subscriber, :handler, :options
 
+    ENRICHED_ACTIONS = %i[* > create update].freeze
+
     DEFAULTS = {
       synchronize: false,
       synchronize_updates: true,
@@ -51,6 +53,20 @@ module Artery
 
     def rewindable?
       client? && synchronize_updates?
+    end
+
+    # Routes of the publishing service this subscription requests, for the permissions of the service.
+    def requested_routes
+      routes = []
+      # A message delivered directly is enriched by its own model, so a wildcard model stays a wildcard.
+      routes << requested_route(:get, wildcard_model: uri.model.to_s == '*') if enriches_delivered?
+      # Synchronization requests the service of the subscription, which a wildcard does not name.
+      return routes if uri.service.to_s == '*'
+
+      routes << requested_route(:get) if handles_records? && receives_updates?
+      routes << requested_route(:get_updates) if receives_updates?
+      routes << requested_route(:get_all) if synchronize? || rewindable?
+      routes.uniq
     end
 
     def latest_outgoing_message_index
@@ -113,6 +129,26 @@ module Artery
     end
 
     protected
+
+    def requested_route(action, wildcard_model: false)
+      return Routing.uri(service: uri.service, model: uri.model, action: action).to_route if wildcard_model
+
+      uri.request_uri(action).to_route
+    end
+
+    # #handle enriches a create or update without attributes, delivered directly or by #receive_updates.
+    def handles_records?
+      %i[create update _default].any? { |name| handler.has_block?(name) }
+    end
+
+    def enriches_delivered?
+      handles_records? && ENRICHED_ACTIONS.include?(uri.action)
+    end
+
+    # #synchronize! skips subscriptions on the service itself, comparing the names as it does.
+    def receives_updates?
+      synchronize_updates? && uri.service != Artery.service_name
+    end
 
     def validate_index(message)
       return true unless message.previous_index.positive? && latest_message_index.positive?
