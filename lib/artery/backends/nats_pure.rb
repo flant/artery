@@ -32,27 +32,33 @@ module Artery
       # count is logged from the reporting thread, so the reading thread never waits for the log.
       class ErrorReporter
         QUEUE_SIZE = 100
+        STOP_TIMEOUT = 5
         EXIT_TIMEOUT = 2
 
         def initialize
-          # One thread keeps the order; SingleThreadExecutor would not bound the queue.
-          @executor = Concurrent::ThreadPoolExecutor.new(min_threads: 1, max_threads: 1, max_queue: QUEUE_SIZE,
-                                                         fallback_policy: :abort)
+          # One thread at most keeps the order, and it ends when idle; SingleThreadExecutor would not bound the queue.
+          @executor = Concurrent::ThreadPoolExecutor.new(min_threads: 0, max_threads: 1, idletime: 60,
+                                                         max_queue: QUEUE_SIZE, fallback_policy: :abort)
           @dropped = Concurrent::AtomicFixnum.new
           at_exit { shutdown(EXIT_TIMEOUT) }
         end
 
-        def post(&report)
+        def post(description, &report)
           @executor.post do
             log_dropped
             report.call
           end
         rescue Concurrent::RejectedExecutionError
-          @dropped.increment
+          # Once the process is exiting nothing would log the count, and no reply is waited for any more.
+          if @executor.running?
+            @dropped.increment
+          else
+            Artery.logger.error "NATS error not reported, the process is exiting: #{description}"
+          end
         end
 
         # Waits until the reports posted so far are done; they keep being sent if it takes longer.
-        def drain(timeout = 5)
+        def drain(timeout = STOP_TIMEOUT)
           deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
           sleep 0.01 until idle? || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
           log_dropped
@@ -171,7 +177,7 @@ module Artery
         subject = denied_subject(message)
         error_class = PERMISSIONS_VIOLATION.match?(message) ? PermissionError : BackendError
 
-        error_reporter.post do
+        error_reporter.post(message) do
           isolate_reporting(error) do
             Artery::Instrumentation.instrument(:connection, state: :error, error: message, subject: subject)
           end
