@@ -71,12 +71,25 @@ module Artery
       def check_permission(operation, subject)
         return unless strict_permissions?
 
-        # Models and subscriptions register when their classes load; tests load them lazily.
-        @application_loaded ||= Permissions.load_application || true
+        load_application
         return if Permissions.new.permits?(operation, subject)
 
         raise PermissionDenied, "#{Artery.service_name} has no permission to #{operation} to #{subject}: " \
                                 "#{HINTS.fetch(operation)}"
+      end
+
+      # Models and subscriptions register when their classes load; tests load them lazily. A check made while
+      # loading, from a load hook, does not load again; a load that failed is retried by the next check.
+      def load_application
+        return if @application_loaded || @application_loading
+
+        begin
+          @application_loading = true
+          Permissions.load_application
+          @application_loaded = true
+        ensure
+          @application_loading = false
+        end
       end
     end
   end

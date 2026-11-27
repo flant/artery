@@ -145,6 +145,33 @@ describe Artery::Backends::Fake do
       end
     end
 
+    context 'when loading the application publishes' do
+      before do
+        allow(Artery::Permissions).to receive(:load_application) do
+          backend.publish('test.healthz.check')
+          backend.publish('test.healthz.check')
+        end
+      end
+
+      it 'does not load it again meanwhile' do
+        expect { backend.publish('test.healthz.check') }.not_to raise_error
+      end
+    end
+
+    context 'when loading the application fails' do
+      before do
+        allow(Artery::Permissions).to receive(:load_application).and_raise(NameError)
+        backend.publish('test.healthz.check')
+      rescue NameError
+        allow(Artery::Permissions).to receive(:load_application)
+        backend.publish('test.healthz.check')
+      end
+
+      it 'loads it again on the next check' do
+        expect(Artery::Permissions).to have_received(:load_application).twice
+      end
+    end
+
     context 'without a service name' do
       before do
         allow(Artery).to receive(:service_name?).and_return(false)
