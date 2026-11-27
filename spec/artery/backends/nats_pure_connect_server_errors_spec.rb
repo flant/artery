@@ -223,6 +223,24 @@ describe Artery::Backends::NATSPure, '#connect' do
     end
   end
 
+  context 'when the logger fails' do
+    let(:logger) { instance_double(Logger, warn: nil, info: nil) }
+    let(:reported_error) { having_attributes(class: Artery::PermissionError) }
+
+    before do
+      allow(Artery).to receive(:logger).and_return(logger)
+      allow(logger).to receive(:error).and_raise(IOError, 'closed stream')
+      allow(Artery::Backends::NATSPure::ErrorReporter).to receive(:warn)
+      client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"'))
+      backend.error_reporter.drain(1)
+    end
+
+    it 'still hands the error to the error handler', :aggregate_failures do
+      expect(Artery).to have_received(:handle_error).with(reported_error)
+      expect(backend.error_reporter).to be_idle
+    end
+  end
+
   context 'when the error handler uses the database' do
     # A test transaction would share its connection with every thread.
     self.use_transactional_tests = false

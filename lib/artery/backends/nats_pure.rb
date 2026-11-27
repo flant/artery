@@ -65,6 +65,13 @@ module Artery
           def active
             @registry.synchronize { @reporters.to_a }
           end
+
+          # A failing logger, such as one writing to a closed stream, must not stop a report or the reading thread.
+          def log(level, message)
+            Artery.logger.public_send(level, message)
+          rescue StandardError => e
+            warn "[Artery] #{message} (logging failed: #{e.inspect})"
+          end
         end
 
         # A reporter that follows a stopped one sends its reports after the reports of the stopped one.
@@ -83,6 +90,9 @@ module Artery
             wait_for_previous
             log_dropped
             run_in_app_executor(&report)
+          rescue StandardError => e
+            # A task that raises is not counted as completed, and the reporter would never be idle again.
+            self.class.log(:error, "Failed to report NATS error #{description}: #{e.inspect}")
           end
         rescue Concurrent::RejectedExecutionError
           # Once the reporter is shut down nothing would log the count, and no reply is waited for any more.
@@ -90,7 +100,7 @@ module Artery
             if @executor.running?
               @dropped.increment
             else
-              Artery.logger.error "NATS error not reported, the reporter is shut down: #{description}"
+              self.class.log(:error, "NATS error not reported, the reporter is shut down: #{description}")
             end
           end
         end
@@ -102,7 +112,7 @@ module Artery
           log_dropped
           return if idle?
 
-          Artery.logger.warn "NATS error reports still pending #{timeout} s after stopping, they keep being sent"
+          self.class.log(:warn, "NATS error reports still pending #{timeout} s after stopping, they keep being sent")
         end
 
         def idle?
@@ -129,7 +139,7 @@ module Artery
           @stopping.synchronize { log_dropped }
           return self.class.unregister(self) if done
 
-          Artery.logger.error "NATS error reports not done #{timeout} s after shutting down, they are lost"
+          self.class.log(:error, "NATS error reports not done #{timeout} s after shutting down, they are lost")
         end
 
         private
@@ -154,7 +164,7 @@ module Artery
           count = @dropped.value until count.zero? || @dropped.compare_and_set(count, 0)
           return if count.zero?
 
-          Artery.logger.error "#{count} NATS error report(s) dropped: #{QUEUE_SIZE} reports were already pending"
+          self.class.log(:error, "#{count} NATS error report(s) dropped: #{QUEUE_SIZE} reports were already pending")
         end
       end
 
@@ -282,7 +292,7 @@ module Artery
       def isolate_reporting(error)
         yield
       rescue StandardError => e
-        Artery.logger.error "Failed to report NATS error #{error.inspect}: #{e.inspect}"
+        ErrorReporter.log(:error, "Failed to report NATS error #{error.inspect}: #{e.inspect}")
       end
 
       # Restricted NATS users may subscribe only to inboxes of their own service.
