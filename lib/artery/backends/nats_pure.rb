@@ -51,28 +51,37 @@ module Artery
           @dropped.increment
         end
 
-        # Waits until the reports posted so far are done.
+        # Waits until the reports posted so far are done; they keep being sent if it takes longer.
         def drain(timeout = 5)
-          done = Concurrent::Event.new
-          post { done.set }
-          done.wait(timeout)
+          deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+          sleep 0.01 until idle? || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+          log_dropped
+          return if idle?
+
+          Artery.logger.warn "NATS error reports still pending #{timeout} s after stopping, they keep being sent"
         end
 
-        # Waits for the pending reports, and logs those that are dropped or not done in time.
+        # Stops reporting when the process exits; reports not done by then are lost.
         def shutdown(timeout = 5)
           @executor.shutdown
           done = @executor.wait_for_termination(timeout)
           log_dropped
-          Artery.logger.error "NATS error reports not done #{timeout} s after stopping, they are lost" unless done
+          return if done
+
+          Artery.logger.error "NATS error reports not done #{timeout} s after the process stopped, they are lost"
         end
 
         private
 
+        def idle?
+          @executor.completed_task_count == @executor.scheduled_task_count
+        end
+
         def log_dropped
           count = @dropped.value
-          return unless count.positive?
+          count = @dropped.value until count.zero? || @dropped.compare_and_set(count, 0)
+          return if count.zero?
 
-          @dropped.decrement(count)
           Artery.logger.error "#{count} NATS error report(s) dropped: #{QUEUE_SIZE} reports were already pending"
         end
       end
@@ -120,8 +129,8 @@ module Artery
 
       def stop
         client.close
-        @error_reporter&.shutdown
-        @error_reporter = nil
+        # The reporter keeps its thread and its order for the next connection.
+        @error_reporter&.drain
         @stop = true
       end
 

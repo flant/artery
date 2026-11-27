@@ -111,7 +111,7 @@ describe Artery::Backends::NATSPure, '#connect' do
   end
 
   context 'when the error handler is slow' do
-    subject { client.request('artery.spec.echo', 'ping', timeout: 1).data }
+    subject(:reply) { client.request('artery.spec.echo', 'ping', timeout: 1).data }
 
     let(:entered) { Concurrent::Event.new }
     let(:release) { Concurrent::Event.new }
@@ -129,7 +129,10 @@ describe Artery::Backends::NATSPure, '#connect' do
       release.set
     end
 
-    it { is_expected.to eq('ping') }
+    it 'replies while the error handler holds the error from the server', :aggregate_failures do
+      expect(reply).to eq('ping')
+      expect(entered).to be_set
+    end
   end
 
   context 'when the server denies a subject with a quote and non-ASCII characters' do
@@ -145,15 +148,19 @@ describe Artery::Backends::NATSPure, '#connect' do
     end
   end
 
-  context 'when the backend is stopped and reports an error again' do
+  context 'when the backend is stopped and connected again' do
+    let(:reported_error) { having_attributes(message: "NATS server error: 'Second'") }
+
     before do
+      client.send(:err_cb_call, client, NATS::IO::ServerError.new("'First'"), nil)
       backend.stop
-      client.send(:err_cb_call, client, NATS::IO::ServerError.new("'Unknown Protocol Operation'"), nil)
+      backend.connect
+      client.send(:err_cb_call, client, NATS::IO::ServerError.new("'Second'"), nil)
       backend.error_reporter.drain
     end
 
-    it 'still reports it' do
-      expect(Artery).to have_received(:handle_error).with(an_instance_of(Artery::BackendError))
+    it 'reports the errors that follow' do
+      expect(Artery).to have_received(:handle_error).with(reported_error)
     end
   end
 
