@@ -81,6 +81,22 @@ describe Artery::Worker, '#run' do
     end
   end
 
+  context 'when code reloading loads the model again before it is named' do
+    before do
+      Artery.unregister_model(item)
+      allow(item).to receive(:name).and_return(nil)
+      Artery.register_model(item)
+      allow(item).to receive(:name).and_return('Item')
+      Artery.add_subscription(reloaded)
+      callbacks['test.items.new'].call('{}', nil, 'test.items.new')
+    end
+
+    it 'hands messages to its new subscriptions only', :aggregate_failures do
+      expect(reloaded).to have_received(:handle).once
+      expect(subscribed).not_to have_received(:handle)
+    end
+  end
+
   context 'when code reloading unloads the model loaded again' do
     before do
       Artery.unregister_model(item)

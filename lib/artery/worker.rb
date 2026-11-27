@@ -76,7 +76,11 @@ module Artery
     def current_subscriptions(uri)
       current = Artery.subscriptions&.[](uri) || []
       unloaded = Artery.unloaded_subscriptions[uri]
-      unloaded ? current + unloaded : current
+      return current unless unloaded
+
+      # A class created with Class.new registers before it is named, so it is matched by its name here.
+      loaded = Artery.models.filter_map(&:name)
+      current + unloaded.reject { |subscription| loaded.include?(subscription.subscriber.name) }
     end
 
     def dispatch(subscriptions, data, reply, from)
