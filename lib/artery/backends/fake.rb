@@ -21,19 +21,22 @@ module Artery
       end
 
       def reply(route, data)
-        @replies[route.to_s] = data
+        @replies[Routing.uri(route).to_route] = data
       end
 
       def time_out(route)
-        @replies[route.to_s] = :timeout
+        @replies[Routing.uri(route).to_route] = :timeout
       end
 
       def clear_replies
         @replies.clear
       end
 
+      # Either setting enables it, so the environment variable works whatever the configuration says.
       def strict_permissions?
-        %w[1 true].include?(config.fetch(:strict_permissions) { ENV.fetch('ARTERY_STRICT_PERMISSIONS', nil) }.to_s)
+        [config[:strict_permissions], ENV.fetch('ARTERY_STRICT_PERMISSIONS', nil)].any? do |value|
+          value.to_s.in?(%w[1 true])
+        end
       end
 
       def start(*_args); end
@@ -53,11 +56,12 @@ module Artery
       def request(route, data, _opts = {})
         check_permission(:publish, route)
         return unless block_given?
+        return yield unless @replies.key?(route.to_s)
 
         reply = @replies[route.to_s]
         return yield(TimeoutError.new(request: { route: route, data: data })) if reply == :timeout
 
-        yield(reply.nil? || reply.is_a?(String) ? reply : reply.to_json)
+        yield(reply.is_a?(String) ? reply : reply.to_json)
       end
 
       def stop(*_args); end

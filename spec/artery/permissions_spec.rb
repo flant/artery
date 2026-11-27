@@ -118,58 +118,67 @@ describe Artery::Permissions do
   describe '#permits?' do
     let(:permissions) { described_class.new }
 
-    # The permissions of a user and what nats-server 2.14.10 allowed it.
+    # The permissions of a user; the tables below are what nats-server 2.14.10 allowed and denied it.
     before do
       allow(permissions).to receive_messages(publish: %w[exact.subject one.* tail.> mid.*.end *.lead],
                                              subscribe: %w[sub.exact sub.one.* sub.tail.> sub.*.mid])
     end
 
-    {
-      'exact.subject' => true,
-      'exact.subject.more' => false,
-      'exact' => false,
-      'one.a' => true,
-      'one.a.b' => false,
-      'one' => false,
-      'tail.a' => true,
-      'tail.a.b.c' => true,
-      'tail' => false,
-      'mid.x.end' => true,
-      'mid.x.y.end' => false,
-      'x.lead' => true,
-      'a.b.lead' => false,
-      'lead' => false
-    }.each do |subject_name, allowed|
-      context "when it publishes to #{subject_name}" do
-        subject { permissions.permits?(:publish, subject_name) }
+    context 'when it publishes' do
+      subject { published.keys.index_with { |name| permissions.permits?(:publish, name) } }
 
-        it { is_expected.to be(allowed) }
+      let(:published) do
+        {
+          'exact.subject' => true,
+          'exact.subject.more' => false,
+          'exact' => false,
+          'one.a' => true,
+          'one.a.b' => false,
+          'one' => false,
+          'tail.a' => true,
+          'tail.a.b.c' => true,
+          'tail' => false,
+          'mid.x.end' => true,
+          'mid.x.y.end' => false,
+          'x.lead' => true,
+          'a.b.lead' => false,
+          'lead' => false,
+          'exact.subject.' => false,
+          'one.' => false,
+          '.lead' => false,
+          'tail..x' => false,
+          'tail.a.' => false
+        }
       end
+
+      it { is_expected.to eq(published) }
     end
 
-    {
-      'sub.exact' => true,
-      'sub.one.a' => true,
-      'sub.one.*' => true,
-      'sub.one.>' => true,
-      'sub.tail.a' => true,
-      'sub.tail.*' => true,
-      'sub.tail.>' => true,
-      'sub.tail' => false,
-      'sub.*' => false,
-      'sub.>' => false,
-      'sub.x.mid' => true,
-      'sub.*.mid' => true,
-      'sub.x.*' => false,
-      'sub.exact.*' => false,
-      'sub.*.*' => false,
-      '>' => false
-    }.each do |subject_name, allowed|
-      context "when it subscribes to #{subject_name}" do
-        subject { permissions.permits?(:subscribe, subject_name) }
+    context 'when it subscribes' do
+      subject { subscribed.keys.index_with { |name| permissions.permits?(:subscribe, name) } }
 
-        it { is_expected.to be(allowed) }
+      let(:subscribed) do
+        {
+          'sub.exact' => true,
+          'sub.one.a' => true,
+          'sub.one.*' => true,
+          'sub.one.>' => true,
+          'sub.tail.a' => true,
+          'sub.tail.*' => true,
+          'sub.tail.>' => true,
+          'sub.tail' => false,
+          'sub.*' => false,
+          'sub.>' => false,
+          'sub.x.mid' => true,
+          'sub.*.mid' => true,
+          'sub.x.*' => false,
+          'sub.exact.*' => false,
+          'sub.*.*' => false,
+          '>' => false
+        }
       end
+
+      it { is_expected.to eq(subscribed) }
     end
   end
 end
