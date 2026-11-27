@@ -174,13 +174,36 @@ describe Artery::Backends::NATSPure, '#connect' do
   end
 
   context 'when the backend is stopped with no report running' do
+    let(:previous_reporter) { backend.error_reporter }
+
     before do
+      allow(Artery.logger).to receive(:error)
       client.send(:err_cb_call, client, NATS::IO::ServerError.new("'First'"), nil)
-      backend.error_reporter.drain
+      previous_reporter.drain
+      backend.stop
+      previous_reporter.post('late') { nil }
     end
 
-    it 'shuts the reporter down to free its thread' do
-      expect { backend.stop }.to change(backend, :error_reporter)
+    it 'shuts the reporter down' do
+      expect(Artery.logger).to have_received(:error).with(/not reported, the reporter is shut down: late/)
+    end
+  end
+
+  context 'when the backend is stopped while a report is still running' do
+    let(:release) { Concurrent::Event.new }
+    let(:previous_reporter) { backend.error_reporter }
+
+    before do
+      stub_const('Artery::Backends::NATSPure::ErrorReporter::STOP_TIMEOUT', 0.1)
+      allow(Artery).to receive(:handle_error) { release.wait(10) }
+      client.send(:err_cb_call, client, NATS::IO::ServerError.new("'First'"), nil)
+      previous_reporter.drain(0.1)
+      backend.stop
+      release.set
+    end
+
+    it 'frees the reporting thread once the report is sent' do
+      expect(previous_reporter.wait_for_termination(5)).to be(true)
     end
   end
 

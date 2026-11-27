@@ -52,6 +52,17 @@ describe Artery::Backends::NATSPure::ErrorReporter do
     end
   end
 
+  context 'when it is shut down' do
+    before do
+      release.set
+      reporter.shutdown
+    end
+
+    it 'leaves the exit handler' do
+      expect(described_class.active).not_to include(reporter)
+    end
+  end
+
   context 'when the pending reports are not done in time on exit' do
     before do
       reporter.shutdown(0.1)
