@@ -48,7 +48,7 @@ describe Artery::Backends::NATSPure::ErrorReporter do
     end
 
     it 'logs the error' do
-      expect(logger).to have_received(:error).with(/not reported, the process is exiting: late/)
+      expect(logger).to have_received(:error).with(/not reported, the reporter is shut down: late/)
     end
   end
 
@@ -58,7 +58,7 @@ describe Artery::Backends::NATSPure::ErrorReporter do
     end
 
     it 'logs that they are lost' do
-      expect(logger).to have_received(:error).with(/not done 0.1 s after the process stopped, they are lost/)
+      expect(logger).to have_received(:error).with(/not done 0.1 s after shutting down, they are lost/)
     end
   end
 end

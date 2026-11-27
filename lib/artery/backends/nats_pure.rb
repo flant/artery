@@ -36,10 +36,11 @@ module Artery
         EXIT_TIMEOUT = 2
 
         def initialize
-          # One thread at most keeps the order, and it ends when idle; SingleThreadExecutor would not bound the queue.
-          @executor = Concurrent::ThreadPoolExecutor.new(min_threads: 0, max_threads: 1, idletime: 60,
+          # One thread keeps the order, started on the first report; SingleThreadExecutor would not bound the queue.
+          @executor = Concurrent::ThreadPoolExecutor.new(min_threads: 0, max_threads: 1,
                                                          max_queue: QUEUE_SIZE, fallback_policy: :abort)
           @dropped = Concurrent::AtomicFixnum.new
+          @stopping = Mutex.new
           at_exit { shutdown(EXIT_TIMEOUT) }
         end
 
@@ -49,11 +50,13 @@ module Artery
             report.call
           end
         rescue Concurrent::RejectedExecutionError
-          # Once the process is exiting nothing would log the count, and no reply is waited for any more.
-          if @executor.running?
-            @dropped.increment
-          else
-            Artery.logger.error "NATS error not reported, the process is exiting: #{description}"
+          # Once the reporter is shut down nothing would log the count, and no reply is waited for any more.
+          @stopping.synchronize do
+            if @executor.running?
+              @dropped.increment
+            else
+              Artery.logger.error "NATS error not reported, the reporter is shut down: #{description}"
+            end
           end
         end
 
@@ -67,21 +70,21 @@ module Artery
           Artery.logger.warn "NATS error reports still pending #{timeout} s after stopping, they keep being sent"
         end
 
-        # Stops reporting when the process exits; reports not done by then are lost.
-        def shutdown(timeout = 5)
-          @executor.shutdown
-          done = @executor.wait_for_termination(timeout)
-          log_dropped
-          return if done
-
-          Artery.logger.error "NATS error reports not done #{timeout} s after the process stopped, they are lost"
-        end
-
-        private
-
         def idle?
           @executor.completed_task_count == @executor.scheduled_task_count
         end
+
+        # Stops reporting, also when the process exits; reports not done by then are lost.
+        def shutdown(timeout = 5)
+          @executor.shutdown
+          done = @executor.wait_for_termination(timeout)
+          @stopping.synchronize { log_dropped }
+          return if done
+
+          Artery.logger.error "NATS error reports not done #{timeout} s after shutting down, they are lost"
+        end
+
+        private
 
         def log_dropped
           count = @dropped.value
@@ -135,8 +138,7 @@ module Artery
 
       def stop
         client.close
-        # The reporter keeps its thread and its order for the next connection.
-        @error_reporter&.drain
+        stop_error_reporter
         @stop = true
       end
 
@@ -165,6 +167,17 @@ module Artery
       end
 
       private
+
+      # An idle reporter is shut down to free its thread; one still sending keeps its order for the next connection.
+      def stop_error_reporter
+        return unless @error_reporter
+
+        @error_reporter.drain
+        return unless @error_reporter.idle?
+
+        @error_reporter.shutdown
+        @error_reporter = nil
+      end
 
       # Reports errors sent by the server. Network errors are left to the disconnect and reconnect events.
       def report_error(error)

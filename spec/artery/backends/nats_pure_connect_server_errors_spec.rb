@@ -154,8 +154,9 @@ describe Artery::Backends::NATSPure, '#connect' do
 
     before do
       stub_const('Artery::Backends::NATSPure::ErrorReporter::STOP_TIMEOUT', 0.1)
-      allow(Artery).to receive(:handle_error) do |error|
-        release.wait(10) if error.message.include?('First')
+      allow(Artery).to receive(:handle_error) { |error| reported << error.message }
+      allow(Artery).to receive(:handle_error).with(having_attributes(message: "NATS server error: 'First'")) do |error|
+        release.wait(10)
         reported << error.message
       end
       client.send(:err_cb_call, client, NATS::IO::ServerError.new("'First'"), nil)
@@ -169,6 +170,17 @@ describe Artery::Backends::NATSPure, '#connect' do
 
     it 'reports the errors in order' do
       expect(reported).to eq(["NATS server error: 'First'", "NATS server error: 'Second'"])
+    end
+  end
+
+  context 'when the backend is stopped with no report running' do
+    before do
+      client.send(:err_cb_call, client, NATS::IO::ServerError.new("'First'"), nil)
+      backend.error_reporter.drain
+    end
+
+    it 'shuts the reporter down to free its thread' do
+      expect { backend.stop }.to change(backend, :error_reporter)
     end
   end
 
