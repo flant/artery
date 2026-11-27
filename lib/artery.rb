@@ -53,6 +53,9 @@ module Artery
 
     def register_model(model)
       model_registry[model.name || model] = model
+      self.unloaded_subscriptions = without_subscriber(unloaded_subscriptions) do |subscriber|
+        model.name && subscriber.name == model.name
+      end
     end
 
     # Forgets the models unloaded with a constant: the constant itself and classes defined in its file.
@@ -61,14 +64,21 @@ module Artery
             .each { |model| unregister_model(model) }
     end
 
-    # Forgets a class unloaded by code reloading, with its subscriptions.
+    # Forgets a class unloaded by code reloading. Its subscriptions move to `unloaded_subscriptions`.
     def unregister_model(model)
       model_registry.delete_if { |_key, registered| registered.equal?(model) }
       return unless subscriptions
 
-      # A running worker keeps handling the lists it subscribed with, so they are replaced, not changed.
-      self.subscriptions = subscriptions.transform_values { |list| list.reject { |s| s.subscriber.equal?(model) } }
-                                        .reject { |_uri, list| list.empty? }
+      unloaded = subscriptions.transform_values { |list| list.select { |s| s.subscriber.equal?(model) } }
+      self.unloaded_subscriptions = unloaded_subscriptions.merge(unloaded) { |_uri, kept, added| kept + added }
+                                                          .reject { |_uri, list| list.empty? }
+      self.subscriptions = without_subscriber(subscriptions) { |subscriber| subscriber.equal?(model) }
+    end
+
+    # Subscriptions of models unloaded by code reloading and not loaded again yet. A running worker keeps handling
+    # their messages until the model registers its subscriptions again.
+    def unloaded_subscriptions
+      @unloaded_subscriptions ||= {}
     end
 
     def handle_signals
@@ -84,6 +94,14 @@ module Artery
     end
 
     private
+
+    attr_writer :unloaded_subscriptions
+
+    # The lists are replaced, not changed, as other threads may be reading them.
+    def without_subscriber(registry, &unwanted)
+      registry.transform_values { |list| list.reject { |subscription| unwanted.call(subscription.subscriber) } }
+              .reject { |_uri, list| list.empty? }
+    end
 
     def model_registry
       @model_registry ||= {}

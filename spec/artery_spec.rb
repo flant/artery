@@ -54,9 +54,11 @@ describe Artery do
 
       around do |example|
         registered = described_class.subscriptions
+        unloaded = described_class.instance_variable_get(:@unloaded_subscriptions)
         example.run
       ensure
         described_class.subscriptions = registered
+        described_class.instance_variable_set(:@unloaded_subscriptions, unloaded)
       end
 
       before do
