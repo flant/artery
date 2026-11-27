@@ -82,7 +82,7 @@ module Artery
           @executor.post do
             wait_for_previous
             log_dropped
-            report.call
+            run_in_app_executor(&report)
           end
         rescue Concurrent::RejectedExecutionError
           # Once the reporter is shut down nothing would log the count, and no reply is waited for any more.
@@ -133,6 +133,15 @@ module Artery
         end
 
         private
+
+        # The reporting thread outlives its reports, so the application executor returns what a report checked out,
+        # such as a database connection, as it does after a request.
+        def run_in_app_executor(&report)
+          app = ::Rails.application if defined?(::Rails) && ::Rails.respond_to?(:application)
+          return report.call unless app.respond_to?(:executor)
+
+          app.executor.wrap(&report)
+        end
 
         # Runs on the reporting thread only.
         def wait_for_previous

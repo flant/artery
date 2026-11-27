@@ -223,6 +223,28 @@ describe Artery::Backends::NATSPure, '#connect' do
     end
   end
 
+  context 'when the error handler uses the database' do
+    # A test transaction would share its connection with every thread.
+    self.use_transactional_tests = false
+
+    let(:reporting_threads) { [] }
+    let(:connection_owners) { ActiveRecord::Base.connection_pool.connections.map(&:owner) }
+
+    before do
+      allow(Artery).to receive(:handle_error) do
+        ActiveRecord::Base.connection.select_value('select 1')
+        reporting_threads << Thread.current
+      end
+      client.send(:err_cb_call, client, NATS::IO::ServerError.new("'First'"), nil)
+      backend.error_reporter.drain
+    end
+
+    it 'returns the connection to the pool after the report', :aggregate_failures do
+      expect(reporting_threads).to be_one
+      expect(connection_owners).not_to include(*reporting_threads)
+    end
+  end
+
   context 'when the server rejects authentication' do
     before do
       client.send(:process_err, "'Authorization Violation'")
