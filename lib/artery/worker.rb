@@ -48,7 +48,7 @@ module Artery
           subscriptions_on_services.each do |uri, subscriptions|
             Artery::Instrumentation.instrument(:worker, action: :subscribing, route: uri.to_s)
             Artery.subscribe uri.to_route, queue: "#{Artery.service_name}.worker" do |data, reply, from|
-              dispatch(subscriptions, data, reply, from)
+              dispatch(current_subscriptions(uri, subscriptions), data, reply, from)
             end
           end
         rescue StandardError => e
@@ -69,6 +69,16 @@ module Artery
       Artery.backend.flush
     rescue StandardError => e
       Artery.handle_error Error.new("WORKER ERROR: subscriptions not confirmed: #{e.inspect}", original_exception: e)
+    end
+
+    # Code reloading in development replaces the subscriptions of a model when it is loaded again. Until then the
+    # subscriptions the worker subscribed with keep handling its messages.
+    def current_subscriptions(uri, subscribed)
+      current = Artery.subscriptions&.[](uri) || []
+      reloaded = current.map { |subscription| subscription.subscriber.to_s }
+      current + subscribed.reject do |subscription|
+        current.include?(subscription) || reloaded.include?(subscription.subscriber.to_s)
+      end
     end
 
     def dispatch(subscriptions, data, reply, from)
