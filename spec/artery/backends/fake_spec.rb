@@ -169,16 +169,17 @@ describe Artery::Backends::Fake do
         allow(Artery).to receive(:outgoing_routes) { release.set? ? %w[late.route] : [] }
         allow(Artery::Permissions).to receive(:load_application) do
           started.set
-          release.wait(5)
+          release.wait
         end
         loader
-        started.wait(5)
+        wait_until { started.set? }
         checker
-        sleep 0.01 until checker.stop? # blocked on the load, or done
+        wait_until { checker.stop? } # blocked on the load, or done
         release.set
       end
 
       after do
+        release.set
         loader.join
       end
 
