@@ -13,8 +13,38 @@ module Artery
       end
     end
 
+    class << self
+      # Whether a subject falls under a permission pattern, as nats-server checks it: `*` takes one token and `>`
+      # one or more; wildcards of the subject itself, as in a subscription, count as plain tokens.
+      def match?(pattern, subject)
+        pattern_tokens = pattern.split('.')
+        subject_tokens = subject.split('.')
+        pattern_tokens.each_with_index do |token, index|
+          return subject_tokens.size > index if token == '>'
+          return false unless token == '*' ? subject_tokens[index] : token == subject_tokens[index]
+        end
+        pattern_tokens.size == subject_tokens.size
+      end
+
+      # Loads every model and declaration the worker loads, also those of engines and gems: the permissions are
+      # derived from them. Rails initializes rake tasks and tests without eager loading, and the flag alone does
+      # not show whether an application initialized earlier was loaded; loading again is a no-op.
+      def load_application
+        return unless defined?(::Rails) && ::Rails.application
+
+        app = ::Rails.application
+        ActiveSupport.run_load_hooks(:before_eager_load, app) unless app.config.eager_load
+        Zeitwerk::Loader.eager_load_all if defined?(Zeitwerk::Loader)
+        app.config.eager_load_namespaces.each(&:eager_load!)
+      end
+    end
+
     def service
       Artery.service_name.to_s
+    end
+
+    def permits?(operation, subject)
+      public_send(operation).any? { |pattern| self.class.match?(pattern, subject.to_s) }
     end
 
     # Replies go to the inboxes of the requesters: `_INBOX.>` covers the default prefixes, and an own prefix

@@ -114,4 +114,62 @@ describe Artery::Permissions do
       it { is_expected.to include(%("user": "billing_nats")) }
     end
   end
+
+  describe '#permits?' do
+    let(:permissions) { described_class.new }
+
+    # The permissions of a user and what nats-server 2.14.10 allowed it.
+    before do
+      allow(permissions).to receive_messages(publish: %w[exact.subject one.* tail.> mid.*.end *.lead],
+                                             subscribe: %w[sub.exact sub.one.* sub.tail.> sub.*.mid])
+    end
+
+    {
+      'exact.subject' => true,
+      'exact.subject.more' => false,
+      'exact' => false,
+      'one.a' => true,
+      'one.a.b' => false,
+      'one' => false,
+      'tail.a' => true,
+      'tail.a.b.c' => true,
+      'tail' => false,
+      'mid.x.end' => true,
+      'mid.x.y.end' => false,
+      'x.lead' => true,
+      'a.b.lead' => false,
+      'lead' => false
+    }.each do |subject_name, allowed|
+      context "when it publishes to #{subject_name}" do
+        subject { permissions.permits?(:publish, subject_name) }
+
+        it { is_expected.to be(allowed) }
+      end
+    end
+
+    {
+      'sub.exact' => true,
+      'sub.one.a' => true,
+      'sub.one.*' => true,
+      'sub.one.>' => true,
+      'sub.tail.a' => true,
+      'sub.tail.*' => true,
+      'sub.tail.>' => true,
+      'sub.tail' => false,
+      'sub.*' => false,
+      'sub.>' => false,
+      'sub.x.mid' => true,
+      'sub.*.mid' => true,
+      'sub.x.*' => false,
+      'sub.exact.*' => false,
+      'sub.*.*' => false,
+      '>' => false
+    }.each do |subject_name, allowed|
+      context "when it subscribes to #{subject_name}" do
+        subject { permissions.permits?(:subscribe, subject_name) }
+
+        it { is_expected.to be(allowed) }
+      end
+    end
+  end
 end

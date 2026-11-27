@@ -100,6 +100,28 @@ $ bundle exec rake "artery:permissions[EMERGENCY_CONTACT_PASSWORD_HASH]"
 }
 ```
 
+### Checking permissions in tests
+
+The `fake` backend answers requests without NATS: with the reply prepared for the route, or an empty one.
+
+```ruby
+# spec/rails_helper.rb
+Artery.use_backend :fake
+
+# in a test
+Artery.backend.reply('bush.permission.effective_permissions', permissions: %w[read])
+Artery.backend.time_out('bush.users.get')
+Artery.backend.clear_replies # after each test
+```
+
+With `ARTERY_STRICT_PERMISSIONS=1`, or `strict_permissions: true` in `backend_config` before the backend is built, requests, publishes and subscriptions outside the permissions that `rake artery:permissions` prints raise `Artery::PermissionDenied`, before a prepared reply is returned. The first check loads the application, as the task does; `service_name` must be configured.
+
+```sh
+ARTERY_STRICT_PERMISSIONS=1 bundle exec rspec
+```
+
+Only calls the tests reach are checked, and stubs of `Artery.request` bypass the backend and its check.
+
 ## Publishing modes
 
 Artery supports two modes for publishing messages to NATS:
