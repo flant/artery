@@ -44,6 +44,16 @@ describe Artery::Backends::Fake do
     it { is_expected.to eq('permissions' => %w[read]) }
   end
 
+  context 'with an empty prepared reply' do
+    subject { make_request('bush.permission.effective_permissions') }
+
+    before do
+      backend.reply('bush.permission.effective_permissions', nil)
+    end
+
+    it { is_expected.to eq({}) }
+  end
+
   context 'with a prepared timeout' do
     before do
       backend.time_out('bush.permission.effective_permissions')

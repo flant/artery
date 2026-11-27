@@ -125,7 +125,7 @@ describe Artery::Permissions do
     end
 
     context 'when it publishes' do
-      subject { published.keys.index_with { |name| permissions.permits?(:publish, name) } }
+      subject { published.keys.to_h { |name| [name, permissions.permits?(:publish, name)] } }
 
       let(:published) do
         {
@@ -155,7 +155,7 @@ describe Artery::Permissions do
     end
 
     context 'when it subscribes' do
-      subject { subscribed.keys.index_with { |name| permissions.permits?(:subscribe, name) } }
+      subject { subscribed.keys.to_h { |name| [name, permissions.permits?(:subscribe, name)] } }
 
       let(:subscribed) do
         {

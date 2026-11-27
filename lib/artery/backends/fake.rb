@@ -61,7 +61,7 @@ module Artery
         reply = @replies[route.to_s]
         return yield(TimeoutError.new(request: { route: route, data: data })) if reply == :timeout
 
-        yield(reply.is_a?(String) ? reply : reply.to_json)
+        yield(reply.nil? || reply.is_a?(String) ? reply : reply.to_json)
       end
 
       def stop(*_args); end
