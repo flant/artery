@@ -24,6 +24,7 @@ describe Artery::Backends::NATSPure, '#connect' do
 
     before do
       client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"'))
+      backend.error_reporter.drain
     end
 
     it 'keeps the connection and the server', :aggregate_failures do
@@ -46,6 +47,7 @@ describe Artery::Backends::NATSPure, '#connect' do
       allow(Artery).to receive(:handle_error).and_call_original
       allow(Artery.logger).to receive(:error)
       client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"'))
+      backend.error_reporter.drain
     end
 
     it 'logs the error with its backtrace' do
@@ -59,6 +61,7 @@ describe Artery::Backends::NATSPure, '#connect' do
       allow(Artery::Instrumentation).to receive(:instrument)
         .with(:connection, hash_including(state: :error)).and_raise('subscriber failed')
       client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"'))
+      backend.error_reporter.drain
     end
 
     it 'still reports the error' do
@@ -72,6 +75,7 @@ describe Artery::Backends::NATSPure, '#connect' do
 
     before do
       client.send(:process_err, %('Permissions Violation for Subscription to "_INBOX.other.>"'))
+      backend.error_reporter.drain
     end
 
     it 'reports the denied subject without reconnecting', :aggregate_failures do
@@ -80,9 +84,55 @@ describe Artery::Backends::NATSPure, '#connect' do
     end
   end
 
+  context 'when the server denies a subject with a quote' do
+    let(:reported_error) { having_attributes(artery_context: { subject: 'denied."quoted"' }) }
+
+    before do
+      client.send(:process_err, %('Permissions Violation for Publish to "denied.\\"quoted\\""'))
+      backend.error_reporter.drain
+    end
+
+    it 'reports the subject as published' do
+      expect(Artery).to have_received(:handle_error).with(reported_error)
+    end
+  end
+
+  context 'when the server denies a subject with a backslash' do
+    let(:reported_error) { having_attributes(artery_context: { subject: 'denied.back\\slash' }) }
+
+    before do
+      client.send(:process_err, %('Permissions Violation for Publish to "denied.back\\\\slash"'))
+      backend.error_reporter.drain
+    end
+
+    it 'reports the subject as published' do
+      expect(Artery).to have_received(:handle_error).with(reported_error)
+    end
+  end
+
+  context 'when the error handler is slow' do
+    # The thread is returned once it finishes, nil if it is still held after a second.
+    subject do
+      Thread.new { client.send(:process_err, %('Permissions Violation for Publish to "forbidden.thing"')) }.join(1)
+    end
+
+    let(:release) { Concurrent::Event.new }
+
+    before do
+      allow(Artery).to receive(:handle_error) { release.wait(5) }
+    end
+
+    after do
+      release.set
+    end
+
+    it { is_expected.to be_a(Thread) }
+  end
+
   context 'when the server rejects authentication' do
     before do
       client.send(:process_err, "'Authorization Violation'")
+      backend.error_reporter.drain
     end
 
     it 'leaves the error to nats-pure' do
@@ -93,6 +143,7 @@ describe Artery::Backends::NATSPure, '#connect' do
   context 'when nats-pure reports an authentication error' do
     before do
       client.send(:err_cb_call, client, NATS::IO::AuthError.new("'Authorization Violation'"), nil)
+      backend.error_reporter.drain
     end
 
     it 'reports a backend error' do
@@ -103,6 +154,7 @@ describe Artery::Backends::NATSPure, '#connect' do
   context 'when nats-pure reports a network error' do
     before do
       client.send(:err_cb_call, client, Errno::ECONNRESET.new, nil)
+      backend.error_reporter.drain
     end
 
     it 'leaves it to the disconnect and reconnect events' do
@@ -115,6 +167,7 @@ describe Artery::Backends::NATSPure, '#connect' do
       allow(Artery).to receive(:handle_error).and_raise('error tracker is unavailable')
       allow(Artery.logger).to receive(:error)
       client.send(:err_cb_call, client, NATS::IO::ServerError.new("'Unknown Protocol Operation'"), nil)
+      backend.error_reporter.drain
     end
 
     it 'logs the failure' do
